@@ -9,12 +9,12 @@ spring:
 agentscope:
   # DashScope API key - set via environment variable DASHSCOPE_API_KEY
   openai:
-    api-key: ${API_KEY:sk-wBkFTox8jMFcGPnO6gTgZYUeg8QGNIKjyYHWfV1RRKJSiBvE}
-    base-url: ${BASE_URL:https://elysiver.h-e.top/v1}
+    api-key: ${CHAT_API_KEY}
+    base-url: ${CHAT_BASE_URL}
   embedding:
     model: BAAI/bge-m3
-    api-key: ${API_KEY:sk-jkVxD6jhP6ytn5ZbQYH1cjQnM0u3uQP7nQDDh4QmbPStDlKF}
-    base-url: ${BASE_URL:https://router.tumuer.me/v1}
+    api-key: ${EMBEDDING_API_KEY}
+    base-url: ${EMBEDDING_BASE_URL}
   # Session storage configuration
   session:
     # Path for storing session files

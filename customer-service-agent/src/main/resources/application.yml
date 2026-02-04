@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: customer-service-agent
+
+# AgentScope configuration
+agentscope:
+  # DashScope API key - set via environment variable DASHSCOPE_API_KEY
+  openai:
+    api-key: ${API_KEY:sk-wBkFTox8jMFcGPnO6gTgZYUeg8QGNIKjyYHWfV1RRKJSiBvE}
+    base-url: ${BASE_URL:https://elysiver.h-e.top/v1}
+  embedding:
+    model: BAAI/bge-m3
+    api-key: ${API_KEY:sk-jkVxD6jhP6ytn5ZbQYH1cjQnM0u3uQP7nQDDh4QmbPStDlKF}
+    base-url: ${BASE_URL:https://router.tumuer.me/v1}
+  # Session storage configuration
+  session:
+    # Path for storing session files
+    path: ./sessions
+
+  # Agent configuration
+  agent:
+    # Default model configuration
+    model:
+      name: claude-4.5-sonnet
+      provider: Elysiver
+
+# Logging configuration
+logging:
+  level:
+    io.agentscope: INFO
+    com.example.customerservice: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

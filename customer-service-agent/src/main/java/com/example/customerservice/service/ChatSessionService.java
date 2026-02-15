@@ -150,6 +150,36 @@ public class ChatSessionService {
             userMessage
         );
 
+        if (isProductInfoIntent(userMessage)) {
+            Msg directResponse = handleDirectProductQuery(userId, userMessage);
+            logger.info(
+                "用户 {} 的消息处理完成（产品信息直出），响应长度: {}, 内容为:{}",
+                userId,
+                directResponse.getTextContent().length(),
+                directResponse.getContent()
+            );
+            activityLogger.logMessageProcessingEnd(
+                "智能客服-" + userId,
+                directResponse.getTextContent()
+            );
+            return directResponse;
+        }
+
+        if (isKnowledgeIntent(userMessage)) {
+            Msg directResponse = handleDirectKnowledgeQuery(userId, userMessage);
+            logger.info(
+                "用户 {} 的消息处理完成（知识库直出），响应长度: {}, 内容为:{}",
+                userId,
+                directResponse.getTextContent().length(),
+                directResponse.getContent()
+            );
+            activityLogger.logMessageProcessingEnd(
+                "智能客服-" + userId,
+                directResponse.getTextContent()
+            );
+            return directResponse;
+        }
+
         ReActAgent agent = getUserSession(userId);
 
         Msg userMsg = Msg.builder()
@@ -175,6 +205,29 @@ public class ChatSessionService {
         );
 
         return response;
+    }
+
+    private Msg handleDirectProductQuery(String userId, String userMessage) {
+        String productName = extractProductName(userMessage);
+        String result = productName != null
+            ? customerServiceTools.queryProductInfo(productName)
+            : "抱歉，我暂时无法识别您咨询的产品名称。请提供更完整的产品名，例如 iPhone 15 Pro。";
+        return Msg.builder()
+            .name("智能客服-" + userId)
+            .role(MsgRole.ASSISTANT)
+            .content(TextBlock.builder().text(result).build())
+            .build();
+    }
+
+    private Msg handleDirectKnowledgeQuery(String userId, String userMessage) {
+        logger.info("命中知识库问题直出策略，userId={}, question={}", userId, userMessage);
+        String toolResult = knowledgeBaseTools.searchKnowledgeBase(userMessage);
+        String finalText = toolResult;
+        return Msg.builder()
+            .name("智能客服-" + userId)
+            .role(MsgRole.ASSISTANT)
+            .content(TextBlock.builder().text(finalText).build())
+            .build();
     }
 
     private Msg fallbackIfOrderStatusPending(
@@ -228,6 +281,38 @@ public class ChatSessionService {
             return null;
         }
         return matcher.group(1).toUpperCase();
+    }
+
+    private boolean isProductInfoIntent(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        boolean asksFeature =
+            message.contains("特性") ||
+            message.contains("特点") ||
+            message.contains("参数") ||
+            message.contains("配置") ||
+            message.contains("介绍") ||
+            message.contains("信息") ||
+            message.contains("有什么");
+        return asksFeature && extractProductName(message) != null;
+    }
+
+    private String extractProductName(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+        String lower = message.toLowerCase();
+        if (lower.contains("iphone 15 pro") || (lower.contains("iphone") && lower.contains("15"))) {
+            return "iPhone 15 Pro";
+        }
+        if (lower.contains("macbook air m2") || (lower.contains("macbook") && lower.contains("m2"))) {
+            return "MacBook Air M2";
+        }
+        if (lower.contains("airpods pro") || lower.contains("airpods")) {
+            return "AirPods Pro";
+        }
+        return null;
     }
 
     private boolean looksLikePendingResponse(String text) {
@@ -284,14 +369,20 @@ public class ChatSessionService {
         if (message == null || message.isBlank()) {
             return false;
         }
-        return message.contains("售后") ||
-        message.contains("政策") ||
-        message.contains("规则") ||
-        message.contains("保修") ||
-        message.contains("人工客服") ||
-        message.contains("退换货") ||
-        message.contains("怎么") ||
-        message.contains("如何");
+        boolean policyLike =
+            message.contains("售后") ||
+            message.contains("政策") ||
+            message.contains("规则") ||
+            message.contains("保修") ||
+            message.contains("人工客服") ||
+            message.contains("退换货");
+        boolean businessLike =
+            message.contains("订单") ||
+            message.contains("物流") ||
+            message.contains("退款") ||
+            message.contains("商品") ||
+            extractOrderId(message) != null;
+        return policyLike && !businessLike;
     }
 
     private boolean looksLikeKnowledgePendingResponse(String text) {

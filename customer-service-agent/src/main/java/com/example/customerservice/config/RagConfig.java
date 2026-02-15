@@ -7,6 +7,8 @@ import io.agentscope.core.rag.knowledge.SimpleKnowledge;
 import io.agentscope.core.rag.store.MilvusStore;
 import io.milvus.v2.common.IndexParam;
 import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +19,10 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class RagConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(
+        RagConfig.class
+    );
 
     @Value("${agentscope.embedding.api-key}")
     private String apiKey;
@@ -98,10 +104,7 @@ public class RagConfig {
             try {
                 milvusStore.close();
             } catch (Exception e) {
-                // Log the error but don't throw as we're shutting down
-                System.err.println(
-                    "Warning: Error closing Milvus store: " + e.getMessage()
-                );
+                logger.warn("关闭Milvus store时发生异常", e);
             }
         }
     }

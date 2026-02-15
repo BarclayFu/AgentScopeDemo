@@ -24,8 +24,18 @@ agentscope:
   agent:
     # Default model configuration
     model:
-      name: claude-4.5-sonnet
+      name: gemini-3-pro-preview
       provider: Elysiver
+
+# Milvus configuration
+milvus:
+  uri: http://localhost:19530
+  collection-name: customer_service_knowledge
+  # For authenticated Milvus instances, uncomment and set:
+  # username: your_milvus_username
+  # password: your_milvus_password
+  # Or for token-based authentication:
+  # token: your_milvus_token
 
 # Logging configuration
 logging:

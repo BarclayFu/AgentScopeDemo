@@ -34,10 +34,13 @@ public class CustomerServiceAgentConfig {
      * @return 配置好的工具包
      */
     @Bean
-    public Toolkit customerServiceToolkit(KnowledgeBaseTools knowledgeBaseTools) {
+    public Toolkit customerServiceToolkit(
+        CustomerServiceTools customerServiceTools,
+        KnowledgeBaseTools knowledgeBaseTools
+    ) {
         Toolkit toolkit = new Toolkit();
         // 注册客服工具
-        toolkit.registerTool(new CustomerServiceTools());
+        toolkit.registerTool(customerServiceTools);
 
         // 初始化并注册知识库工具
         toolkit.registerTool(knowledgeBaseTools);
@@ -54,10 +57,10 @@ public class CustomerServiceAgentConfig {
     @Bean
     public OpenAIChatModel openAIChatModel() {
         return OpenAIChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
-                .build();
+            .apiKey(apiKey)
+            .baseUrl(baseUrl)
+            .modelName(modelName)
+            .build();
     }
 
     /**
@@ -69,30 +72,33 @@ public class CustomerServiceAgentConfig {
      * @return 配置好的客服Agent
      */
     @Bean
-    public ReActAgent customerServiceAgent(OpenAIChatModel chatModel, Toolkit toolkit) {
+    public ReActAgent customerServiceAgent(
+        OpenAIChatModel chatModel,
+        Toolkit toolkit
+    ) {
         String systemPrompt = """
-                你是一个专业的智能客服助手，你的职责是为客户提供准确、及时的帮助。请遵循以下指导原则：
+            你是一个专业的智能客服助手，你的职责是为客户提供准确、及时的帮助。请遵循以下指导原则：
 
-                1. 专业礼貌：始终保持专业的态度和礼貌的语调与客户交流。
-                2. 准确回答：基于所提供的工具和信息准确回答客户问题。
-                3. 主动服务：主动询问客户的需求，提供解决方案。
-                4. 处理流程：
-                   - 若客户咨询订单状态，请使用query_order_status工具
-                   - 若客户需要办理退款，请使用process_refund工具
-                   - 若客户询问产品信息，请使用query_product_info工具
-                   - 若客户查询物流信息，请使用query_shipping_status工具
-                   - 若客户询问常见问题，请使用search_knowledge_base工具
-                5. 限制说明：只能处理与订单、产品、物流、退款、常见问题相关的咨询，其他问题请引导客户联系人工客服。
+            1. 专业礼貌：始终保持专业的态度和礼貌的语调与客户交流。
+            2. 准确回答：基于所提供的工具和信息准确回答客户问题。
+            3. 主动服务：主动询问客户的需求，提供解决方案。
+            4. 处理流程：
+               - 若客户咨询订单状态，请使用query_order_status工具
+               - 若客户需要办理退款，请使用process_refund工具
+               - 若客户询问产品信息，请使用query_product_info工具
+               - 若客户查询物流信息，请使用query_shipping_status工具
+               - 若客户询问常见问题，请使用search_knowledge_base工具
+            5. 限制说明：只能处理与订单、产品、物流、退款、常见问题相关的咨询，其他问题请引导客户联系人工客服。
 
-                请记住，客户满意度是我们的首要目标，请尽最大努力帮助每一位客户解决问题。
-                """;
+            请记住，客户满意度是我们的首要目标，请尽最大努力帮助每一位客户解决问题。
+            """;
 
         return ReActAgent.builder()
-                .name("智能客服")
-                .sysPrompt(systemPrompt)
-                .model(chatModel)
-                .toolkit(toolkit)
-                .memory(new InMemoryMemory())
-                .build();
+            .name("智能客服")
+            .sysPrompt(systemPrompt)
+            .model(chatModel)
+            .toolkit(toolkit)
+            .memory(new InMemoryMemory())
+            .build();
     }
 }

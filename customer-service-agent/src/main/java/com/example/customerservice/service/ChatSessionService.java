@@ -10,6 +10,7 @@ import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.OpenAIChatModel;
 import io.agentscope.core.tool.Toolkit;
 import jakarta.annotation.PostConstruct;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -19,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 /**
  * 聊天会话管理服务
@@ -129,7 +131,12 @@ public class ChatSessionService {
             .memory(new InMemoryMemory())
             // 开启元工具模式，兼容不稳定的函数调用模型，提升工具触发成功率
             .enableMetaTool(true)
-            .toolExecutionConfig(io.agentscope.core.model.ExecutionConfig.builder().timeout(java.time.Duration.ofSeconds(30)).maxAttempts(1).build()) // 优化工具执行配置
+            .toolExecutionConfig(
+                io.agentscope.core.model.ExecutionConfig.builder()
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .maxAttempts(1)
+                    .build()
+            ) // 优化工具执行配置
             .maxIters(3) // 限制最大迭代次数
             .build();
         logger.info("用户 {} 的客服Agent实例创建完成", userId);
@@ -166,7 +173,10 @@ public class ChatSessionService {
         }
 
         if (isKnowledgeIntent(userMessage)) {
-            Msg directResponse = handleDirectKnowledgeQuery(userId, userMessage);
+            Msg directResponse = handleDirectKnowledgeQuery(
+                userId,
+                userMessage
+            );
             logger.info(
                 "用户 {} 的消息处理完成（知识库直出），响应长度: {}, 内容为:{}",
                 userId,
@@ -191,7 +201,11 @@ public class ChatSessionService {
         // 调用Agent处理消息
         Msg response = agent.call(userMsg).block();
         response = fallbackIfOrderStatusPending(userId, userMessage, response);
-        response = fallbackIfKnowledgeQueryPending(userId, userMessage, response);
+        response = fallbackIfKnowledgeQueryPending(
+            userId,
+            userMessage,
+            response
+        );
 
         logger.info(
             "用户 {} 的消息处理完成，响应长度: {}, 内容为:{}",
@@ -209,9 +223,10 @@ public class ChatSessionService {
 
     private Msg handleDirectProductQuery(String userId, String userMessage) {
         String productName = extractProductName(userMessage);
-        String result = productName != null
-            ? customerServiceTools.queryProductInfo(productName)
-            : "抱歉，我暂时无法识别您咨询的产品名称。请提供更完整的产品名，例如 iPhone 15 Pro。";
+        String result =
+            productName != null
+                ? customerServiceTools.queryProductInfo(productName)
+                : "抱歉，我暂时无法识别您咨询的产品名称。请提供更完整的产品名，例如 iPhone 15 Pro。";
         return Msg.builder()
             .name("智能客服-" + userId)
             .role(MsgRole.ASSISTANT)
@@ -220,7 +235,11 @@ public class ChatSessionService {
     }
 
     private Msg handleDirectKnowledgeQuery(String userId, String userMessage) {
-        logger.info("命中知识库问题直出策略，userId={}, question={}", userId, userMessage);
+        logger.info(
+            "命中知识库问题直出策略，userId={}, question={}",
+            userId,
+            userMessage
+        );
         String toolResult = knowledgeBaseTools.searchKnowledgeBase(userMessage);
         String finalText = toolResult;
         return Msg.builder()
@@ -264,11 +283,11 @@ public class ChatSessionService {
         if (message == null || message.isBlank()) {
             return false;
         }
-        return message.contains("订单") &&
-        (
-            message.contains("状态") ||
-            message.contains("查询") ||
-            message.contains("查一下")
+        return (
+            message.contains("订单") &&
+            (message.contains("状态") ||
+                message.contains("查询") ||
+                message.contains("查一下"))
         );
     }
 
@@ -303,10 +322,16 @@ public class ChatSessionService {
             return null;
         }
         String lower = message.toLowerCase();
-        if (lower.contains("iphone 15 pro") || (lower.contains("iphone") && lower.contains("15"))) {
+        if (
+            lower.contains("iphone 15 pro") ||
+            (lower.contains("iphone") && lower.contains("15"))
+        ) {
             return "iPhone 15 Pro";
         }
-        if (lower.contains("macbook air m2") || (lower.contains("macbook") && lower.contains("m2"))) {
+        if (
+            lower.contains("macbook air m2") ||
+            (lower.contains("macbook") && lower.contains("m2"))
+        ) {
             return "MacBook Air M2";
         }
         if (lower.contains("airpods pro") || lower.contains("airpods")) {
@@ -327,7 +352,9 @@ public class ChatSessionService {
             text.contains("稍等") ||
             text.contains("正在为您查询");
         boolean hasFinalOrderInfo =
-            text.contains("订单ID") || text.contains("状态:") || text.contains("未找到订单");
+            text.contains("订单ID") ||
+            text.contains("状态:") ||
+            text.contains("未找到订单");
         return hasPendingWord && !hasFinalOrderInfo;
     }
 
@@ -428,5 +455,83 @@ public class ChatSessionService {
      */
     public int getActiveSessionCount() {
         return userSessions.size();
+    }
+
+    /**
+     * 流式处理用户消息（模拟流式输出）
+     * 由于AgentScope可能不支持真正的流式API，这里采用模拟流式的方式
+     * 将完整的Agent响应分块发送，制造打字机效果
+     *
+     * @param userId 用户ID
+     * @param userMessage 用户消息
+     * @param streamInterval 流式输出的时间间隔（毫秒）
+     * @return Flux<String> 流式响应
+     */
+    public Flux<String> streamUserMessage(
+        String userId,
+        String userMessage,
+        int streamInterval
+    ) {
+        logger.info("开始流式处理用户 {} 的消息: {}", userId, userMessage);
+        activityLogger.logMessageProcessingStart(
+            "智能客服-" + userId,
+            userMessage + " [流式]"
+        );
+
+        // 先获取完整的Agent响应
+        return Flux.<String>create(sink -> {
+            try {
+                // 处理用户消息获取完整响应
+                Msg response = processUserMessage(userId, userMessage);
+                String fullResponse = response.getTextContent();
+
+                logger.info(
+                    "用户 {} 的完整响应已获取，长度: {}",
+                    userId,
+                    fullResponse.length()
+                );
+
+                // 检查是否为空响应
+                if (fullResponse == null || fullResponse.isEmpty()) {
+                    sink.next("[系统响应为空]");
+                    sink.complete();
+                    return;
+                }
+
+                // 分块发送响应，模拟打字机效果
+                int chunkSize = streamInterval > 0 ? 5 : 20; // 根据间隔动态调整块大小
+                int totalLength = fullResponse.length();
+
+                for (int i = 0; i < totalLength; i += chunkSize) {
+                    int end = Math.min(i + chunkSize, totalLength);
+                    String chunk = fullResponse.substring(i, end);
+
+                    // 直接发送纯文本，Spring WebFlux会自动处理SSE格式
+                    sink.next(chunk);
+
+                    logger.debug(
+                        "发送流式块: 前进={}, 剩余={}",
+                        end,
+                        totalLength - end
+                    );
+                }
+
+                // 发送结束信号（纯文本，不加data:前缀）
+                sink.next("[DONE]");
+                sink.complete();
+
+                logger.info("用户 {} 的流式响应发送完成", userId);
+                activityLogger.logMessageProcessingEnd(
+                    "智能客服-" + userId,
+                    fullResponse
+                );
+            } catch (Exception e) {
+                logger.error("流式处理用户消息失败", e);
+                sink.error(e);
+            }
+        })
+            // 添加延迟，模拟打字机效果
+            .delayElements(Duration.ofMillis(streamInterval))
+            .doOnError(error -> logger.error("流式处理出错", error));
     }
 }

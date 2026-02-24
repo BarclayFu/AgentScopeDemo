@@ -24,8 +24,8 @@ agentscope:
   agent:
     # Default model configuration
     model:
-      name: gemini-3-pro-preview
-      provider: Elysiver
+      name: claude-sonnet-4-20250514
+      provider: Wong
 
 # Milvus configuration
 milvus:

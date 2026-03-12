@@ -506,6 +506,10 @@ public class ChatSessionService {
                     int end = Math.min(i + chunkSize, totalLength);
                     String chunk = fullResponse.substring(i, end);
 
+                    // 将换行符转义为字符串形式，避免SSE将其作为行分隔符
+                    // 这样前端接收到的数据不会因为换行符而被拆分成多条
+                    chunk = chunk.replace("\\", "\\\\").replace("\n", "\\n");
+
                     // 直接发送纯文本，Spring WebFlux会自动处理SSE格式
                     sink.next(chunk);
 

@@ -24,8 +24,8 @@ agentscope:
   agent:
     # Default model configuration
     model:
-      name: claude-sonnet-4-20250514
-      provider: Wong
+      name: MiniMax-M2.5
+      provider: MiniMax
 
 # Milvus configuration
 milvus:

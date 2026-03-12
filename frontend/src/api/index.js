@@ -1,0 +1,137 @@
+import axios from 'axios'
+
+// 创建axios实例
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  timeout: 60000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// 请求拦截器
+api.interceptors.request.use(
+  config => {
+    // 可以在这里添加认证token等
+    return config
+  },
+  error => {
+    return Promise.reject(error)
+  }
+)
+
+// 响应拦截器
+api.interceptors.response.use(
+  response => {
+    return response.data
+  },
+  error => {
+    console.error('API Error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// ==================== 聊天API ====================
+
+/**
+ * 发送聊天消息（非流式）
+ * @param {string} userId - 用户ID
+ * @param {string} message - 消息内容
+ */
+export async function sendMessage(userId, message) {
+  return api.post('/api/chat/message', { userId, message })
+}
+
+/**
+ * 获取流式响应（SSE）
+ * @param {string} userId - 用户ID
+ * @param {string} message - 消息内容
+ * @param {function} onMessage - 消息回调
+ * @param {function} onError - 错误回调
+ * @param {number} streamInterval - 流式间隔
+ * @returns {EventSource}
+ */
+export function createStreamChat(userId, message, onMessage, onError, streamInterval = 30) {
+  const params = new URLSearchParams({
+    userId,
+    message,
+    stream: 'true',
+    streamInterval: streamInterval.toString()
+  })
+
+  const eventSource = new EventSource(`${import.meta.env.VITE_API_BASE_URL}/api/chat/stream?${params}`)
+
+  eventSource.onmessage = (event) => {
+    const data = event.data
+    if (data === '[DONE]') {
+      eventSource.close()
+      if (onMessage) onMessage({ done: true })
+    } else if (data.startsWith('{') || data.startsWith('error')) {
+      try {
+        const parsed = JSON.parse(data)
+        eventSource.close()
+        if (onError) onError(parsed.error || 'Unknown error')
+      } catch (e) {
+        eventSource.close()
+        if (onError) onError(data)
+      }
+    } else {
+      if (onMessage) onMessage({ content: data, done: false })
+    }
+  }
+
+  eventSource.onerror = (error) => {
+    eventSource.close()
+    // SSE连接错误，传递一个友好的错误信息
+    if (onError) onError('SSE连接失败，请检查网络或服务端是否正常运行')
+  }
+
+  return eventSource
+}
+
+/**
+ * 获取活跃会话数量
+ */
+export async function getActiveSessionCount() {
+  return api.get('/api/chat/sessions/count')
+}
+
+/**
+ * 清除用户会话
+ * @param {string} userId - 用户ID
+ */
+export async function clearUserSession(userId) {
+  return api.delete(`/api/chat/session/${userId}`)
+}
+
+/**
+ * 健康检查
+ */
+export async function healthCheck() {
+  return api.get('/api/chat/health')
+}
+
+// ==================== 监控API ====================
+
+/**
+ * 获取监控统计
+ */
+export async function getMonitoringStats() {
+  return api.get('/api/monitoring/stats')
+}
+
+/**
+ * 重置监控统计
+ */
+export async function resetMonitoringStats() {
+  return api.post('/api/monitoring/reset')
+}
+
+/**
+ * 获取系统状态
+ */
+export async function getSystemStatus() {
+  return api.get('/api/monitoring/status')
+}
+
+export default api

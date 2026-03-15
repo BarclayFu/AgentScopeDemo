@@ -42,7 +42,8 @@ const menuItems = ref([
 <style scoped>
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -108,7 +109,10 @@ const menuItems = ref([
 
 .main-content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
   background: #f5f7fa;
-  overflow-y: auto;
+  overflow: hidden;
 }
 </style>

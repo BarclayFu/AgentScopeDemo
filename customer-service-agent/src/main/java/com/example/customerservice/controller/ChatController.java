@@ -1,6 +1,7 @@
 package com.example.customerservice.controller;
 
 import com.example.customerservice.dto.ChatRequest;
+import com.example.customerservice.service.AgentMonitoringService;
 import com.example.customerservice.service.ChatSessionService;
 import io.agentscope.core.message.Msg;
 import jakarta.validation.Valid;
@@ -30,6 +31,9 @@ public class ChatController {
 
     @Autowired
     private ChatSessionService chatSessionService;
+
+    @Autowired
+    private AgentMonitoringService monitoringService;
 
     /**
      * 处理用户发送的消息
@@ -90,6 +94,7 @@ public class ChatController {
                 e.getMessage(),
                 e
             );
+            monitoringService.recordError("chat-message", e.getMessage());
 
             return ResponseEntity.status(500).body(
                 Map.of("error", "处理消息时发生错误: " + e.getMessage())
@@ -190,6 +195,7 @@ public class ChatController {
                         e.getMessage(),
                         e
                     );
+                    monitoringService.recordError("chat-stream", e.getMessage());
                     return Flux.just(
                         "data: {\"error\":\"处理消息时发生错误: " +
                             e.getMessage() +
@@ -204,6 +210,7 @@ public class ChatController {
                 e.getMessage(),
                 e
             );
+            monitoringService.recordError("chat-stream", e.getMessage());
             return Flux.just(
                 "data: {\"error\":\"处理消息时发生异常: " +
                     e.getMessage() +

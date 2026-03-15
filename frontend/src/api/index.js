@@ -1,8 +1,8 @@
 import axios from 'axios'
+import { buildApiUrl } from '@/config/runtimeSettings'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
@@ -12,7 +12,9 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   config => {
-    // 可以在这里添加认证token等
+    if (config.url) {
+      config.url = buildApiUrl(config.url)
+    }
     return config
   },
   error => {
@@ -59,7 +61,7 @@ export function createStreamChat(userId, message, onMessage, onError, streamInte
     streamInterval: streamInterval.toString()
   })
 
-  const eventSource = new EventSource(`${import.meta.env.VITE_API_BASE_URL}/api/chat/stream?${params}`)
+  const eventSource = new EventSource(buildApiUrl(`/api/chat/stream?${params}`))
 
   eventSource.onmessage = (event) => {
     const data = event.data

@@ -36,6 +36,15 @@ public class ChatSessionService {
         "\\b(ORD\\d{3,})\\b",
         Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern THINK_BLOCK_PATTERN = Pattern.compile(
+        "(?is)<(think|thought|reasoning)>.*?</\\1>"
+    );
+    private static final Pattern ESCAPED_THINK_BLOCK_PATTERN = Pattern.compile(
+        "(?is)&lt;(think|thought|reasoning)&gt;.*?&lt;/\\1&gt;"
+    );
+    private static final Pattern THINK_LINE_PATTERN = Pattern.compile(
+        "(?im)^\\s*(think|thought|reasoning|思考|思路)\\s*[:：].*$"
+    );
 
     @Autowired
     private AgentActivityLogger activityLogger;
@@ -206,6 +215,7 @@ public class ChatSessionService {
             userMessage,
             response
         );
+        response = sanitizeAssistantResponse(userId, response);
 
         logger.info(
             "用户 {} 的消息处理完成，响应长度: {}, 内容为:{}",
@@ -473,17 +483,15 @@ public class ChatSessionService {
         int streamInterval
     ) {
         logger.info("开始流式处理用户 {} 的消息: {}", userId, userMessage);
-        activityLogger.logMessageProcessingStart(
-            "智能客服-" + userId,
-            userMessage + " [流式]"
-        );
 
         // 先获取完整的Agent响应
         return Flux.<String>create(sink -> {
             try {
                 // 处理用户消息获取完整响应
                 Msg response = processUserMessage(userId, userMessage);
-                String fullResponse = response.getTextContent();
+                String fullResponse = response != null
+                    ? sanitizeReasoningContent(response.getTextContent())
+                    : "";
 
                 logger.info(
                     "用户 {} 的完整响应已获取，长度: {}",
@@ -525,10 +533,6 @@ public class ChatSessionService {
                 sink.complete();
 
                 logger.info("用户 {} 的流式响应发送完成", userId);
-                activityLogger.logMessageProcessingEnd(
-                    "智能客服-" + userId,
-                    fullResponse
-                );
             } catch (Exception e) {
                 logger.error("流式处理用户消息失败", e);
                 sink.error(e);
@@ -537,5 +541,53 @@ public class ChatSessionService {
             // 添加延迟，模拟打字机效果
             .delayElements(Duration.ofMillis(streamInterval))
             .doOnError(error -> logger.error("流式处理出错", error));
+    }
+
+    private Msg sanitizeAssistantResponse(String userId, Msg response) {
+        if (response == null) {
+            return null;
+        }
+
+        String sanitizedText = sanitizeReasoningContent(
+            response.getTextContent()
+        );
+
+        if (sanitizedText.equals(response.getTextContent())) {
+            return response;
+        }
+
+        logger.info("已剥离用户 {} 响应中的思考过程输出", userId);
+        return Msg.builder()
+            .name(response.getName())
+            .role(MsgRole.ASSISTANT)
+            .content(TextBlock.builder().text(sanitizedText).build())
+            .build();
+    }
+
+    private String sanitizeReasoningContent(String content) {
+        if (content == null || content.isBlank()) {
+            return "";
+        }
+
+        String sanitized = THINK_BLOCK_PATTERN.matcher(content).replaceAll("");
+        sanitized =
+            ESCAPED_THINK_BLOCK_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized = THINK_LINE_PATTERN.matcher(sanitized).replaceAll("");
+        sanitized =
+            sanitized
+                .replace("<think>", "")
+                .replace("</think>", "")
+                .replace("<thought>", "")
+                .replace("</thought>", "")
+                .replace("<reasoning>", "")
+                .replace("</reasoning>", "")
+                .replace("&lt;think&gt;", "")
+                .replace("&lt;/think&gt;", "")
+                .replace("&lt;thought&gt;", "")
+                .replace("&lt;/thought&gt;", "")
+                .replace("&lt;reasoning&gt;", "")
+                .replace("&lt;/reasoning&gt;", "");
+        sanitized = sanitized.replaceAll("(?m)^[ \\t]*\\r?\\n", "");
+        return sanitized.trim();
     }
 }

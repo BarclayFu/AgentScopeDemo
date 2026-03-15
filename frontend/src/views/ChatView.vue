@@ -108,9 +108,11 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { useSettingsStore } from '@/stores/settings'
 import { createStreamChat, getActiveSessionCount } from '@/api'
 
 const chatStore = useChatStore()
+const settingsStore = useSettingsStore()
 
 // 响应式状态
 const inputMessage = ref('')
@@ -243,21 +245,17 @@ function formatMessage(content) {
   if (!content) return ''
 
   let filtered = content
+    .replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '')
+    .replace(/&lt;(think|thought|reasoning)&gt;[\s\S]*?&lt;\/\1&gt;/gi, '')
 
-  // 1. 移除 think 标签对
-  // 使用简单字符串替换避免正则解析问题
-  filtered = filtered.split('<think>').join('').split('</think>').join('')
-  filtered = filtered.split('<thought>').join('').split('</thought>').join('')
-
-  // 2. 移除 think 开头的行
   const lines = filtered.split('\n')
   const cleanLines = lines.filter(line => {
     const trimmed = line.trim().toLowerCase()
-    return !trimmed.startsWith('think:') && !trimmed.startsWith('thought:')
+    return !/^(think|thought|reasoning|思考|思路)\s*[:：]/i.test(trimmed)
   })
   filtered = cleanLines.join('\n')
 
-  // 3. 处理换行 - 先将转义的\n转换回换行符，再替换\n为<br>
+  // 处理换行 - 先将转义的\n转换回换行符，再替换\n为<br>
   filtered = filtered
     .trim()
     .replace(/\\n/g, '\n')
@@ -289,6 +287,7 @@ async function fetchActiveSessions() {
 
 onMounted(() => {
   fetchActiveSessions()
+  nextTick(() => scrollToBottom())
 })
 </script>
 
@@ -297,6 +296,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background: #f5f7fa;
 }
 
@@ -358,11 +358,14 @@ onMounted(() => {
 
 .messages-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px clamp(20px, 2.5vw, 36px);
 }
 
 .welcome-message {
+  width: 100%;
+  margin: 0 auto;
   text-align: center;
   padding: 60px 20px;
 }
@@ -412,7 +415,7 @@ onMounted(() => {
 }
 
 .message-list {
-  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -453,7 +456,7 @@ onMounted(() => {
 }
 
 .message-content {
-  max-width: 70%;
+  max-width: 88%;
 }
 
 .message.user .message-content {
@@ -558,6 +561,7 @@ onMounted(() => {
 }
 
 .input-container {
+  flex-shrink: 0;
   background: white;
   padding: 15px 25px;
   border-top: 1px solid #e1e8ed;
@@ -569,6 +573,9 @@ onMounted(() => {
   gap: 20px;
   margin-bottom: 15px;
   flex-wrap: wrap;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .control-group {
@@ -624,6 +631,8 @@ onMounted(() => {
 .input-wrapper {
   display: flex;
   gap: 10px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .message-input {

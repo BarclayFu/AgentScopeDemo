@@ -2,6 +2,7 @@ package com.example.customerservice.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -13,10 +14,14 @@ public class AgentActivityLogger {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentActivityLogger.class);
 
+    @Autowired
+    private AgentMonitoringService monitoringService;
+
     /**
      * 记录工具调用开始
      */
     public void logToolCallStart(String toolName, String parameters) {
+        monitoringService.recordToolCall(toolName, parameters);
         logger.info("🔧 工具调用开始: {} | 参数: {}", toolName, parameters);
     }
 
@@ -32,6 +37,7 @@ public class AgentActivityLogger {
      * 记录工具调用错误
      */
     public void logToolCallError(String toolName, String error) {
+        monitoringService.recordError(toolName, error);
         logger.error("❌ 工具调用错误: {} | 错误信息: {}", toolName, error);
     }
 
@@ -39,6 +45,7 @@ public class AgentActivityLogger {
      * 记录Agent消息处理开始
      */
     public void logMessageProcessingStart(String agentName, String message) {
+        monitoringService.recordAgentStart(agentName, message);
         logger.info("🚀 Agent消息处理开始: {} | 消息: {}", agentName, message);
     }
 
@@ -46,6 +53,7 @@ public class AgentActivityLogger {
      * 记录Agent消息处理完成
      */
     public void logMessageProcessingEnd(String agentName, String response) {
+        monitoringService.recordAgentResponse(agentName, response);
         logger.info("🏁 Agent消息处理完成: {} | 响应长度: {} 字符",
             agentName, response != null ? response.length() : 0);
     }

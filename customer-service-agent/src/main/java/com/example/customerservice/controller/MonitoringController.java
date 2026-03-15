@@ -1,5 +1,9 @@
 package com.example.customerservice.controller;
 
+import com.example.customerservice.dto.MonitoringResetResponse;
+import com.example.customerservice.dto.MonitoringStatusResponse;
+import com.example.customerservice.dto.MonitoringSummaryResponse;
+import com.example.customerservice.service.ChatSessionService;
 import com.example.customerservice.service.AgentMonitoringService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -10,33 +14,38 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/monitoring")
+@CrossOrigin(origins = "*")
 public class MonitoringController {
 
     @Autowired
     private AgentMonitoringService monitoringService;
 
+    @Autowired
+    private ChatSessionService chatSessionService;
+
     /**
      * 获取监控统计信息
      */
     @GetMapping("/stats")
-    public String getStatistics() {
-        return monitoringService.getStatistics();
+    public MonitoringSummaryResponse getStatistics() {
+        return monitoringService.getSummary(
+            chatSessionService.getActiveSessionCount()
+        );
     }
 
     /**
      * 重置监控统计信息
      */
     @PostMapping("/reset")
-    public String resetStatistics() {
-        monitoringService.resetStatistics();
-        return "Statistics reset successfully";
+    public MonitoringResetResponse resetStatistics() {
+        return monitoringService.resetAndGetResponse();
     }
 
     /**
      * 获取应用状态
      */
     @GetMapping("/status")
-    public String getStatus() {
-        return "Customer Service Agent is running. " + monitoringService.getStatistics();
+    public MonitoringStatusResponse getStatus() {
+        return monitoringService.getStatus();
     }
 }

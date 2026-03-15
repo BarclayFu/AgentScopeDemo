@@ -1,313 +1,139 @@
-# 开发文档
+# 后端开发文档
 
-## 项目架构
+本文档面向继续维护 `customer-service-agent` 的开发者，重点说明当前实现结构，而不是历史方案。
 
-### 整体架构图
+## 核心模块
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    客户端 (Web/移动应用)                     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ HTTP/REST API
-┌─────────────────────▼───────────────────────────────────────┐
-│                    Spring Boot 应用                          │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                  REST 控制器 (ChatController)           ││
-│  └─────────────────────┬───────────────────────────────────┘│
-│                        │
-│  ┌─────────────────────▼───────────────────────────────────┐│
-│  │               会话服务 (ChatSessionService)             ││
-│  │  - 管理用户会话状态                                     ││
-│  │  - 创建和维护Agent实例                                  ││
-│  └─────────────────────┬───────────────────────────────────┘│
-│                        │
-│  ┌─────────────────────▼───────────────────────────────────┐│
-│  │              智能客服Agent (ReActAgent)                  ││
-│  │  - 基于AgentScope框架                                   ││
-│  │  - 使用DashScope模型                                    ││
-│  │  - 调用工具处理用户请求                                 ││
-│  └─────────────────────┬───────────────────────────────────┘│
-│                        │
-│  ┌─────────────────────▼───────────────────────────────────┐│
-│  │                    工具系统                             ││
-│  │  ┌────────────────────────────────────────────────────┐ ││
-│  │  │           客服工具 (CustomerServiceTools)          │ ││
-│  │  │  - query_order_status: 查询订单状态                │ ││
-│  │  │  - process_refund: 办理退款                        │ ││
-│  │  │  - query_product_info: 查询产品信息                │ ││
-│  │  │  - query_shipping_status: 查询物流状态             │ ││
-│  │  └────────────────────────────────────────────────────┘ ││
-│  │  ┌────────────────────────────────────────────────────┐ ││
-│  │  │           知识库工具 (KnowledgeBaseTools)          │ ││
-│  │  │  - search_knowledge_base: 检索知识库               │ ││
-│  │  └────────────────────────────────────────────────────┘ ││
-│  └─────────────────────────────────────────────────────────┘│
-│                        │
-│  ┌─────────────────────▼───────────────────────────────────┐│
-│  │                 知识库系统 (RAG)                        ││
-│  │  - SimpleKnowledge实现                                  ││
-│  │  - 文本嵌入模型                                         ││
-│  │  - 文档检索功能                                         ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+### Agent 运行链路
+
+- `CustomerServiceAgentConfig`
+  - 负责组装 Agent、模型和工具
+- `ChatSessionService`
+  - 负责按用户管理会话
+  - 提供普通聊天和流式聊天能力
+  - 在返回前会过滤 `think` / `thought` / `reasoning` 内容
+- `CustomerServiceTools`
+  - 提供订单、物流、退款、产品信息、知识录入等工具
+
+### 管理后台 API
+
+- `MonitoringController`
+  - 仪表盘使用的监控接口
+- `KnowledgeController`
+  - 知识库管理台使用的接口
+- `WebCorsConfig`
+  - 开发环境全局跨域配置
+
+### 知识库链路
+
+- `RagConfig`
+  - 创建 `EmbeddingModel`
+  - 创建 `Knowledge`
+  - 底层使用 `MilvusStore`
+- `KnowledgeBaseService`
+  - 管理知识条目注册表
+  - 执行索引建立、删除和重建
+  - 对外提供检索、列表、状态等服务
+
+## 请求流转
+
+### 聊天
+
+```text
+前端 ChatView
+-> ChatController
+-> ChatSessionService
+-> AgentScope Agent
+-> CustomerServiceTools / KnowledgeBaseService
+-> 返回普通响应或 SSE 流
 ```
 
-### 核心组件说明
+### 仪表盘
 
-1. **主应用类** (`CustomerServiceAgentApplication`)
-   - Spring Boot应用入口点
-   - 负责初始化应用上下文
-
-2. **REST控制器** (`ChatController`)
-   - 提供HTTP API接口
-   - 处理用户消息、会话管理等请求
-
-3. **会话服务** (`ChatSessionService`)
-   - 管理用户会话状态
-   - 为每个用户创建独立的Agent实例
-
-4. **Agent配置** (`CustomerServiceAgentConfig`)
-   - 配置客服Agent及其依赖组件
-   - 初始化模型、工具包等
-
-5. **工具系统**
-   - **客服工具**: 处理具体业务逻辑
-   - **知识库工具**: 提供知识检索能力
-
-## 代码结构
-
-```
-src/
-├── main/
-│   ├── java/com/example/customerservice/
-│   │   ├── CustomerServiceAgentApplication.java    # 主应用类
-│   │   ├── agent/                                  # Agent配置
-│   │   │   └── CustomerServiceAgentConfig.java
-│   │   ├── controller/                             # REST控制器
-│   │   │   └── ChatController.java
-│   │   ├── service/                                # 业务服务
-│   │   │   ├── ChatSessionService.java
-│   │   │   └── KnowledgeBaseService.java
-│   │   └── tools/                                  # 工具类
-│   │       ├── CustomerServiceTools.java
-│   │       └── KnowledgeBaseTools.java
-│   └── resources/
-│       ├── application.yml                         # 应用配置
-│       └── static/                                 # 静态资源
-│           └── index.html                          # 测试页面
-└── test/
-    └── java/com/example/customerservice/
-        └── CustomerServiceAgentApplicationTests.java
+```text
+前端 DashboardView
+-> MonitoringController
+-> AgentMonitoringService
+-> DTO 响应
 ```
 
-## 扩展开发指南
+### 知识库管理
 
-### 添加新工具
-
-1. 在 `CustomerServiceTools.java` 中添加新的工具方法:
-
-```java
-@Tool(name = "new_tool_name", description = "工具功能描述")
-public static String newToolMethod(
-        @ToolParam(name = "parameterName", description = "参数描述") String parameter) {
-    // 实现工具逻辑
-    return "工具执行结果";
-}
+```text
+前端 KnowledgeView
+-> KnowledgeController
+-> KnowledgeBaseService
+-> knowledge-entries.json + Milvus
 ```
 
-2. 在Agent的系统提示词中添加使用说明:
+## 知识库实现细节
 
-```java
-// 在CustomerServiceAgentConfig.java中更新系统提示词
-"- 若客户需要[某种功能]，请使用new_tool_name工具"
-```
+### 条目来源
 
-### 扩展知识库
+知识条目有三种来源：
 
-1. 在 `KnowledgeBaseTools.java` 的 `initializeDocuments()` 方法中添加新文档:
+1. 应用初始化时写入的默认 seed 数据
+2. 管理台手工新增的条目
+3. Agent 工具 `add_knowledge` 新增的条目
 
-```java
-String newContent = """
-    新文档标题
-    文档内容...
-    """;
-addDocumentToKnowledgeBase("新文档标题", newContent);
-```
+### 初始化流程
 
-2. 或者实现外部文档导入功能（高级）:
+`KnowledgeBaseService.init()` 在应用启动后执行：
 
-```java
-// 在KnowledgeBaseService中添加方法
-public void importDocumentFromFile(String filePath) {
-    // 实现文件读取和导入逻辑
-}
-```
+1. 先读取 `data/knowledge-entries.json`
+2. 如果为空，则写入默认 seed 数据
+3. 检查每个条目是否已有 `chunkIds`
+4. 缺失则重新建立向量索引
 
-### 自定义Agent行为
+### 索引建立
 
-1. 修改 `CustomerServiceAgentConfig.java` 中的系统提示词
-2. 调整Agent的行为规则和处理流程
-3. 可以创建多个不同用途的Agent实例
+当前索引流程不是手写倒排索引，而是向量化写入 Milvus：
 
-## API接口文档
+1. 读入条目原始文本
+2. 用 `TextReader` 切块
+3. 为每个 chunk 生成 `chunkId`
+4. 写入 `title/source/type/entryId` 等 payload
+5. 调用 `knowledgeBase.addDocuments(...)`
 
-### 发送消息
+检索时通过 `knowledgeBase.retrieve(...)` 获取结果。
 
-```
-POST /api/chat/message
-Content-Type: application/json
+### 为什么页面能显示文本预览
 
-{
-  "userId": "用户ID",
-  "message": "用户消息内容"
-}
+管理台展示的 `contentPreview` 来自知识条目注册表本身，不是从向量库反查。
 
-响应:
-{
-  "userId": "用户ID",
-  "response": "Agent回复内容",
-  "timestamp": 时间戳
-}
-```
+也就是说：
 
-### 查询活跃会话数
+- 页面列表数据来源：`data/knowledge-entries.json`
+- 检索命中来源：Milvus 向量库
 
-```
-GET /api/chat/sessions/count
+## 本地开发
 
-响应:
-{
-  "activeSessions": 会话数量
-}
-```
-
-### 清除用户会话
-
-```
-DELETE /api/chat/session/{userId}
-
-响应:
-{
-  "message": "用户会话已清除"
-}
-```
-
-### 健康检查
-
-```
-GET /api/chat/health
-
-响应:
-{
-  "status": "healthy",
-  "service": "Customer Service Agent"
-}
-```
-
-## 测试指南
-
-### 单元测试
+### 启动
 
 ```bash
-# 运行所有测试
+mvn spring-boot:run
+```
+
+### 测试
+
+```bash
 mvn test
-
-# 运行特定测试类
-mvn test -Dtest=CustomerServiceAgentApplicationTests
 ```
 
-### 集成测试
+### 常见排查
 
-使用 `test-api.sh` 脚本进行API集成测试:
+- 前端请求失败：
+  - 先确认后端是否已重启
+  - 再确认 `WebCorsConfig` 是否生效
+- 知识库页面有条目但检索不到：
+  - 检查 Milvus 是否正常
+  - 检查 embedding 配置
+  - 尝试调用知识库重建接口
+- 界面出现 `Think:` 等内容：
+  - 优先检查 `ChatSessionService` 的输出清洗是否被新改动绕过
 
-```bash
-# 确保应用已启动
-./start.sh
+## 后续开发建议
 
-# 在另一个终端运行测试
-./test-api.sh
-```
-
-### 性能测试
-
-可以使用Apache Bench等工具进行性能测试:
-
-```bash
-ab -n 1000 -c 10 -p test-data.json -T "application/json" http://localhost:8080/api/chat/message
-```
-
-## 部署指南
-
-### 环境要求
-
-- JDK 17 或更高版本
-- Maven 3.6 或更高版本
-- DashScope API Key
-
-### 构建和部署
-
-```bash
-# 构建项目
-mvn clean package
-
-# 运行应用
-java -jar target/customer-service-agent-1.0.0.jar
-
-# 或使用Docker（需要Dockerfile）
-docker build -t customer-service-agent .
-docker run -p 8080:8080 customer-service-agent
-```
-
-### 配置管理
-
-通过环境变量或配置文件管理配置:
-
-```bash
-export DASHSCOPE_API_KEY=your_api_key_here
-export SERVER_PORT=8080
-```
-
-## 故障排除
-
-### 常见问题
-
-1. **API密钥错误**
-   - 检查DASHSCOPE_API_KEY环境变量是否正确设置
-   - 验证API密钥是否有效
-
-2. **模型调用失败**
-   - 检查网络连接
-   - 确认DashScope服务状态
-
-3. **知识库初始化失败**
-   - 检查嵌入模型配置
-   - 验证API密钥权限
-
-### 日志查看
-
-```bash
-# 查看应用日志
-tail -f logs/application.log
-
-# 查看系统日志
-journalctl -u customer-service-agent
-```
-
-## 性能优化建议
-
-1. **会话管理优化**
-   - 使用Redis等外部存储管理会话状态
-   - 实现会话过期机制
-
-2. **缓存策略**
-   - 缓存常用查询结果
-   - 使用本地缓存减少重复计算
-
-3. **并发处理**
-   - 调整线程池配置
-   - 优化Agent实例管理
-
-4. **数据库优化**
-   - 为频繁查询字段添加索引
-   - 优化查询语句
-```
+- 新能力优先走 OpenSpec 变更流程
+- 知识库下一阶段建议做文件上传和批量导入
+- 仪表盘下一阶段建议增加更细粒度的趋势数据和错误明细

@@ -1,12 +1,22 @@
-# 前端项目说明
+# frontend
 
-这是智能客服系统的 Vue 3 前端，负责聊天页面和管理后台界面。
+Vue 3 管理前端，负责聊天页、仪表盘、设置页和知识库管理页。
 
-## 已完成能力
+## 当前页面
 
-- 聊天页：支持 SSE 流式输出和多用户切换
-- 仪表盘：展示结构化监控摘要、健康状态和最近检查时间
-- 设置页：支持保存默认用户、流式速度和 API 地址，并写入 localStorage
+- `/`：聊天页
+- `/dashboard`：监控仪表盘
+- `/knowledge`：知识库管理台 MVP
+- `/settings`：前端运行时设置页
+
+## 已实现能力
+
+- SSE 流式聊天
+- 多用户切换
+- 聊天记录本地持久化
+- 仪表盘监控数据加载、自动刷新和手动刷新
+- 设置页持久化
+- 知识条目列表、新增、删除、重建索引
 
 ## 常用命令
 
@@ -17,21 +27,47 @@ npm run build
 npm run test
 ```
 
+开发默认地址：`http://localhost:5173`
+
+## API 连接方式
+
+开发环境支持两种方式：
+
+1. `VITE_API_BASE_URL` 直接指向后端
+2. 留空后走 Vite 代理 `/api -> http://localhost:8080`
+
+默认配置见 [.env.development](.env.development) 和 [vite.config.js](vite.config.js)。
+
 ## 运行时设置
 
-设置页会把前端操作偏好保存到浏览器 localStorage，键名为 `agentscope.admin.settings`。
+设置页会把前端偏好保存到浏览器 localStorage：
 
-包含以下字段：
+- `agentscope.admin.settings`
 
-- `apiBaseUrl`：API 根地址，可留空以走 Vite 代理或同源部署
-- `defaultUserId`：聊天页默认用户 ID
-- `defaultStreamInterval`：聊天页默认流式速度
+字段包括：
 
-如果 `apiBaseUrl` 已经带有 `/api`，前端会自动兼容，不会重复拼接。
+- `apiBaseUrl`
+- `defaultUserId`
+- `defaultStreamInterval`
 
-## 页面说明
+聊天记录会保存在：
 
-- `/`：在线客服
-- `/dashboard`：管理后台仪表盘
-- `/settings`：前端设置页
-- `/knowledge`：知识库管理占位页，后续阶段实现
+- `agentscope.chat.state`
+
+如果切换环境后页面行为异常，可以先清掉这两个键再试。
+
+## 开发说明
+
+- 聊天页会优先读取设置页保存的默认用户和流式速度
+- 如果后端地址里已经包含 `/api`，前端会自动兼容，避免重复拼接
+- 仪表盘对监控接口做过兼容处理，可同时兼容旧字符串响应和新 JSON 响应
+- 知识库页面展示的是后端返回的 `contentPreview`，不是前端自己截取
+
+## 测试覆盖
+
+当前已包含的前端测试主要包括：
+
+- 运行时设置
+- 仪表盘数据渲染
+- 设置持久化
+- 知识库管理页交互

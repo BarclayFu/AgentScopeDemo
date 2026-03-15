@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/monitoring")
-@CrossOrigin(origins = "*")
 public class MonitoringController {
 
     @Autowired

@@ -136,4 +136,26 @@ export async function getSystemStatus() {
   return api.get('/api/monitoring/status')
 }
 
+// ==================== 知识库管理 API ====================
+
+export async function getKnowledgeEntries() {
+  return api.get('/api/knowledge/entries')
+}
+
+export async function createKnowledgeEntry(payload) {
+  return api.post('/api/knowledge/entries', payload)
+}
+
+export async function deleteKnowledgeEntry(entryId) {
+  return api.delete(`/api/knowledge/entries/${entryId}`)
+}
+
+export async function rebuildKnowledgeBase() {
+  return api.post('/api/knowledge/rebuild')
+}
+
+export async function getKnowledgeStatus() {
+  return api.get('/api/knowledge/status')
+}
+
 export default api

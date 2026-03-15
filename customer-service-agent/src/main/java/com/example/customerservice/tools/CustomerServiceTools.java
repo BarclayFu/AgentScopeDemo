@@ -1,6 +1,7 @@
 package com.example.customerservice.tools;
 
 import com.example.customerservice.service.AgentActivityLogger;
+import com.example.customerservice.service.KnowledgeBaseService;
 import io.agentscope.core.message.ContentBlock;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.rag.Knowledge;
@@ -35,6 +36,9 @@ public class CustomerServiceTools {
 
     @Autowired
     private AgentActivityLogger activityLogger;
+
+    @Autowired
+    private KnowledgeBaseService knowledgeBaseService;
 
     // 注入Knowledge Bean用于向量数据库操作
     private Knowledge knowledgeBase;
@@ -321,39 +325,14 @@ public class CustomerServiceTools {
         }
 
         try {
-            logger.debug(
-                "使用TextReader创建文档，内容长度: {}",
-                content.length()
+            knowledgeBaseService.createManagedEntry(title, content, "tool");
+            String result = String.format(
+                "成功添加知识到知识库\n标题: %s\n内容: %s",
+                title,
+                content
             );
-            // 使用TextReader创建文档
-            TextReader reader = new TextReader();
-            ReaderInput input = ReaderInput.fromString(content);
-            List<Document> documents = reader.read(input).block();
-
-            if (documents != null && !documents.isEmpty()) {
-                logger.info(
-                    "成功创建{}个文档，开始添加到知识库",
-                    documents.size()
-                );
-                // 添加到知识库
-                knowledgeBase.addDocuments(documents).block();
-                logger.info("成功添加知识到向量数据库，标题: {}", title);
-
-                String result = String.format(
-                    "成功添加知识到向量数据库\n标题: %s\n内容: %s",
-                    title,
-                    content
-                );
-                activityLogger.logToolCallEnd("add_knowledge", result);
-                return result;
-            } else {
-                logger.warn("创建文档失败：未生成有效文档");
-                activityLogger.logToolCallEnd(
-                    "add_knowledge",
-                    "创建文档失败：未生成有效文档"
-                );
-                return "创建文档失败：未生成有效文档";
-            }
+            activityLogger.logToolCallEnd("add_knowledge", result);
+            return result;
         } catch (Exception e) {
             logger.error("添加知识失败", e);
             String errorMessage = String.format(

@@ -21,7 +21,6 @@ import reactor.core.publisher.Flux;
  */
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "*") // 允许跨域请求
 @Validated
 public class ChatController {
 

@@ -209,7 +209,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard-view {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   padding: 30px;
+  overflow-y: auto;
 }
 
 .page-header {

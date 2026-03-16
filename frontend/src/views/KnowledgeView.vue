@@ -91,7 +91,7 @@
               </div>
               <button class="danger-btn" @click="removeEntry(entry.entryId)">删除</button>
             </div>
-            <p class="entry-preview">{{ entry.contentPreview }}</p>
+            <p class="entry-preview">{{ displayEntryContent(entry) }}</p>
             <div class="entry-meta">
               <span>创建于 {{ formatDate(entry.createdAt) }}</span>
               <span>更新于 {{ formatDate(entry.updatedAt) }}</span>
@@ -221,6 +221,10 @@ function formatDate(timestamp) {
   })
 }
 
+function displayEntryContent(entry) {
+  return entry?.content || entry?.contentPreview || ''
+}
+
 onMounted(() => {
   loadKnowledgeData()
 })
@@ -228,6 +232,9 @@ onMounted(() => {
 
 <style scoped>
 .knowledge-view {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   padding: 30px;
   overflow-y: auto;
 }
@@ -383,6 +390,8 @@ onMounted(() => {
   color: #475467;
   line-height: 1.7;
   margin-bottom: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .entry-meta {

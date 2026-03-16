@@ -38,6 +38,7 @@ class KnowledgeControllerTest {
                     new KnowledgeEntryResponse(
                         "kb-1",
                         "退换货政策",
+                        "7天无理由退货，拆封后如无损坏也可申请售后。",
                         "7天无理由退货",
                         "seed",
                         "text",
@@ -54,7 +55,8 @@ class KnowledgeControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.total").value(1))
             .andExpect(jsonPath("$.entries[0].entryId").value("kb-1"))
-            .andExpect(jsonPath("$.entries[0].title").value("退换货政策"));
+            .andExpect(jsonPath("$.entries[0].title").value("退换货政策"))
+            .andExpect(jsonPath("$.entries[0].content").value("7天无理由退货，拆封后如无损坏也可申请售后。"));
     }
 
     @Test

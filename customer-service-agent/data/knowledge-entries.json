@@ -43,4 +43,13 @@
   "createdAt" : 1773592693591,
   "updatedAt" : 1773592700051,
   "chunkIds" : [ "kb-default-64e4fcb3-af34-4d25-9f53-8effdcb68722-chunk-0" ]
+}, {
+  "entryId" : "kb-94cd8019-8b5b-4565-8fdb-59ec91589fec",
+  "title" : "发票开具",
+  "content" : "发票问题需要手动填写表格example.com/form/1234。请在链接中填写相关信息。",
+  "source" : "knowledge-console",
+  "type" : "text",
+  "createdAt" : 1773625641853,
+  "updatedAt" : 1773625642944,
+  "chunkIds" : [ ]
 } ]

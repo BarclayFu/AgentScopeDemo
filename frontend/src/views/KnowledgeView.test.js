@@ -32,7 +32,8 @@ describe('KnowledgeView', () => {
         {
           entryId: 'kb-1',
           title: '退换货政策',
-          contentPreview: '7天无理由退货',
+          content: '7天无理由退货\n拆封后如无损坏也可申请售后',
+          contentPreview: '7天无理由退货...',
           source: 'seed',
           type: 'text',
           createdAt: 1710000000000,
@@ -56,6 +57,7 @@ describe('KnowledgeView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('退换货政策')
+    expect(wrapper.text()).toContain('拆封后如无损坏也可申请售后')
     expect(wrapper.text()).toContain('知识库状态')
     expect(wrapper.text()).toContain('知识库已刷新')
   })

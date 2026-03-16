@@ -295,8 +295,11 @@ onMounted(() => {
 .chat-view {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  width: 100%;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   background: #f5f7fa;
 }
 

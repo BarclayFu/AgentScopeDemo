@@ -5,6 +5,7 @@ import com.example.customerservice.service.KnowledgeGraphService;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Record;
+import org.neo4j.driver.types.Relationship;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -121,11 +122,12 @@ public class GraphRAGRetriever {
                     nodes.add(new GraphNodeResponse(mId, m.labels().iterator().next(), m.get("name").asString(), m.asMap()));
                 }
 
-                for ( var rel : rels) {
+                for (Object relObj : rels) {
+                    Relationship rel = (Relationship) relObj;
                     String rId = String.valueOf(rel.id());
                     if (!seenEdges.contains(rId)) {
                         seenEdges.add(rId);
-                        edges.add(new GraphEdgeResponse(rId, String.valueOf(rel.start().id()), String.valueOf(rel.end().id()), rel.type()));
+                        edges.add(new GraphEdgeResponse(rId, String.valueOf(rel.start()), String.valueOf(rel.end()), rel.type()));
                     }
                 }
             }

@@ -158,4 +158,57 @@ export async function getKnowledgeStatus() {
   return api.get('/api/knowledge/status')
 }
 
+// ==================== 图谱API ====================
+
+/**
+ * 获取图谱统计
+ */
+export async function getGraphStats() {
+  return api.get('/api/graph/stats')
+}
+
+/**
+ * 获取图谱节点
+ * @param {number} limit - 限制数量
+ * @param {number} offset - 偏移量
+ */
+export async function getGraphNodes(limit = 100, offset = 0) {
+  return api.get('/api/graph/nodes', { params: { limit, offset } })
+}
+
+/**
+ * 获取图谱边
+ * @param {number} limit - 限制数量
+ * @param {number} offset - 偏移量
+ */
+export async function getGraphEdges(limit = 100, offset = 0) {
+  return api.get('/api/graph/edges', { params: { limit, offset } })
+}
+
+/**
+ * 清除图谱
+ */
+export async function clearGraph() {
+  return api.post('/api/graph/clear')
+}
+
+// ==================== 对比实验API ====================
+
+/**
+ * 对比搜索
+ * @param {string} query - 查询内容
+ * @param {number} limit - 限制数量
+ */
+export async function compareSearch(query, limit = 5) {
+  return api.post('/api/compare/search', { query, limit })
+}
+
+/**
+ * 预览三元组抽取
+ * @param {string} content - 内容
+ */
+export async function previewTripleExtraction(content) {
+  return api.post('/api/compare/extract', { content })
+}
+
 export default api

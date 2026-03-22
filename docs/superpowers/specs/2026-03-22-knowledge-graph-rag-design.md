@@ -138,15 +138,37 @@ patterns:
   - "(保修|退换|维修)"     → 服务类型识别
 ```
 
-### 4.3 LLM 三元组抽取 Prompt
+### 4.3 LLM 三元组抽取
+
+**使用的 LLM**: DashScope (阿里云百炼)，与现有系统一致，使用 `qwen-max` 模型
+
+**LLM 三元组抽取 Prompt**:
 
 ```json
 {
   "task": "从文本中抽取知识图谱三元组",
+  "model": "qwen-max",
   "output_format": "JSON数组，每项为 {\"subject\": \"实体A\", \"relation\": \"关系\", \"object\": \"实体B\"}",
   "entities": ["Product", "Service", "QA", "Concept"],
   "relations": ["BELONGS_TO", "HAS_SERVICE", "RELATED_TO", "REFERENCES", "MENTIONS"]
 }
+```
+
+**完整 System Prompt**:
+```
+你是一个知识图谱抽取专家。你的任务是从给定文本中提取实体和关系，输出JSON格式的三元组。
+
+实体类型: Product, Service, QA, Concept
+关系类型: BELONGS_TO, HAS_SERVICE, RELATED_TO, REFERENCES, MENTIONS
+
+要求:
+1. 实体名称应简洁明了
+2. 关系必须来自上述关系类型列表
+3. 每个三元组表示 (实体A, 关系, 实体B)
+4. 输出纯JSON数组，不要包含其他文字
+
+示例输入: "智能手表保修两年，如有质量问题可退换"
+示例输出: [{"subject": "智能手表", "relation": "HAS_SERVICE", "object": "两年质保"}, {"subject": "退换", "relation": "MENTIONS", "object": "质量问题"}]
 ```
 
 ### 4.4 抽取触发时机
@@ -167,6 +189,11 @@ patterns:
 用户问题
     │
     ├─→ 关键词规则匹配 → 定位起始实体
+    │   关键词规则库:
+    │   - "产品/商品/东西" → 匹配 :Product 实体
+    │   - "保修/质保/维修/退换/退款" → 匹配 :Service 实体
+    │   - "订单/单号" → 匹配 :Order 实体
+    │   - "怎么/如何/是什么/为什么" → 匹配 :QA 实体
     │
     └─→ LLM 实体链接 → 识别问题中的实体
               │
@@ -176,6 +203,11 @@ patterns:
               ▼
         相关子图 → 返回上下文
 ```
+
+**检索策略**:
+1. **规则匹配优先**: 当问题包含明确的关键词时，直接用规则定位实体
+2. **LLM 补充**: 当规则无法覆盖时，使用 LLM 进行实体识别和链接
+3. **两种方式互补**: 最终合并两种方式找到的实体集合
 
 ### 5.2 检索配置
 
@@ -213,6 +245,25 @@ public class HybridRAGService {
     }
 }
 ```
+
+**合并策略 (combineResults)**:
+
+采用**加权融合**策略，计算最终 Relevance Score:
+
+```
+Score = α * VectorScore + (1-α) * GraphScore
+
+其中:
+- α = 0.5 (默认，可配置)
+- VectorScore: 向量检索的相似度分数 (0-1)
+- GraphScore: 图谱检索的路径相关性分数 (0-1)
+```
+
+**分数归一化**:
+- VectorScore 直接使用 Milvus 返回的余弦相似度
+- GraphScore 基于路径长度计算: `1.0 / (1 + hopCount)`，跳数越少分数越高
+
+**对比模式**: 在 `/api/compare/search` 中，两条路径分别返回原始结果，不进行融合
 
 ---
 
@@ -273,6 +324,67 @@ public class HybridRAGService {
 |------|------|------|
 | `/api/compare/search` | POST | 同一问题双路径搜索 |
 | `/api/compare/extract` | POST | 抽取知识条目为三元组（预览） |
+
+**POST /api/compare/search**
+
+Request:
+```json
+{
+  "query": "智能手表如何保修？",
+  "limit": 5
+}
+```
+
+Response:
+```json
+{
+  "query": "智能手表如何保修？",
+  "vectorResult": {
+    "answer": "智能手表保修...",
+    "retrievedChunks": [
+      {
+        "content": "智能手表保修两年...",
+        "score": 0.85,
+        "source": "knowledge-entries.json"
+      }
+    ]
+  },
+  "graphResult": {
+    "answer": "智能手表保修...",
+    "retrievedEntities": [
+      {
+        "entity": {"type": "Product", "name": "智能手表"},
+        "relations": [
+          {"path": "智能手表 -HAS_SERVICE→ 两年质保", "hopCount": 1}
+        ]
+      }
+    ],
+    "subgraph": {
+      "nodes": [...],
+      "edges": [...]
+    }
+  }
+}
+```
+
+**POST /api/compare/extract**
+
+Request:
+```json
+{
+  "content": "智能手表保修两年，如有质量问题可退换"
+}
+```
+
+Response:
+```json
+{
+  "triples": [
+    {"subject": "智能手表", "relation": "HAS_SERVICE", "object": "两年质保"},
+    {"subject": "退换", "relation": "MENTIONS", "object": "质量问题"}
+  ]
+}
+```
 
 ---
 

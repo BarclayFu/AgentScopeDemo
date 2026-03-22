@@ -138,15 +138,18 @@ public class Neo4jConfig {
     @Value("${neo4j.database:neo4j}")
     private String database;
 
+    private Driver driver;
+
     @Bean
     public Driver neo4jDriver() {
         logger.info("Initializing Neo4j driver: {}", neo4jUri);
-        return GraphDatabase.driver(neo4jUri, AuthTokens.basic(username, password));
+        this.driver = GraphDatabase.driver(neo4jUri, AuthTokens.basic(username, password));
+        return this.driver;
     }
 
     public void close() {
-        if (neo4jDriver != null) {
-            neo4jDriver.close();
+        if (driver != null) {
+            driver.close();
         }
     }
 
@@ -1242,7 +1245,7 @@ public class HybridRAGService {
     }
 
     public VectorSearchResult searchVectorOnly(String query, int limit) {
-        return knowledgeBaseService.searchKnowledgeBase(query, limit);
+        return knowledgeBaseService.searchKnowledgeBaseStructured(query, limit);
     }
 
     public GraphSearchResult searchGraphOnly(String query, int limit) {

@@ -140,14 +140,14 @@ patterns:
 
 ### 4.3 LLM 三元组抽取
 
-**使用的 LLM**: DashScope (阿里云百炼)，与现有系统一致，使用 `qwen-max` 模型
+**使用的 LLM**: MiniMax M2.7
 
 **LLM 三元组抽取 Prompt**:
 
 ```json
 {
   "task": "从文本中抽取知识图谱三元组",
-  "model": "qwen-max",
+  "model": "MiniMax M2.7",
   "output_format": "JSON数组，每项为 {\"subject\": \"实体A\", \"relation\": \"关系\", \"object\": \"实体B\"}",
   "entities": ["Product", "Service", "QA", "Concept"],
   "relations": ["BELONGS_TO", "HAS_SERVICE", "RELATED_TO", "REFERENCES", "MENTIONS"]

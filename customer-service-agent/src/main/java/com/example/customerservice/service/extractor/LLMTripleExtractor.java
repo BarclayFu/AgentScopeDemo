@@ -39,8 +39,8 @@ public class LLMTripleExtractor {
         String userPrompt = "输入文本: " + text + "\n\n请提取三元组，输出JSON数组:";
 
         List<Msg> messages = List.of(
-            Msg.of(MsgRole.System, TextBlock.of(SYSTEM_PROMPT)),
-            Msg.of(MsgRole.User, TextBlock.of(userPrompt))
+            Msg.of(MsgRole.SYSTEM, TextBlock.of(SYSTEM_PROMPT)),
+            Msg.of(MsgRole.USER, TextBlock.of(userPrompt))
         );
 
         String response = chatModel.chat(messages).get(0).getTextContent();

@@ -26,18 +26,24 @@ public class TripleExtractor {
         List<Map<String, String>> triples = new ArrayList<>();
 
         // 1. Rule-based extraction
-        Map<String, List<String>> preprocessed = rulePreprocessor.preprocess(fullText);
+        Map<String, Object> preprocessed = rulePreprocessor.preprocess(fullText);
 
         // Convert preprocessed data to triples
-        for (String product : preprocessed.getOrDefault("products", List.of())) {
+        @SuppressWarnings("unchecked")
+        List<String> products = (List<String>) preprocessed.getOrDefault("products", List.of());
+        for (String product : products) {
             triples.add(Map.of("subject", product, "relation", "MENTIONS", "object", title));
         }
 
-        for (String service : preprocessed.getOrDefault("services", List.of())) {
+        @SuppressWarnings("unchecked")
+        List<String> services = (List<String>) preprocessed.getOrDefault("services", List.of());
+        for (String service : services) {
             triples.add(Map.of("subject", title, "relation", "HAS_SERVICE", "object", service));
         }
 
-        for (Map<String, String> qa : preprocessed.getOrDefault("qas", List.of())) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> qas = (List<Map<String, String>>) preprocessed.getOrDefault("qas", List.of());
+        for (Map<String, String> qa : qas) {
             triples.add(Map.of(
                 "subject", qa.get("question"),
                 "relation", "RELATED_TO",
@@ -74,10 +80,14 @@ public class TripleExtractor {
         logger.info("Extracted and stored {} triples for entry {}", triples.size(), knowledgeEntryId);
     }
 
-    private String inferEntityType(String entity, Map<String, List<String>> preprocessed) {
-        if (preprocessed.getOrDefault("products", List.of()).contains(entity)) return "Product";
-        if (preprocessed.getOrDefault("services", List.of()).contains(entity)) return "Service";
-        if (preprocessed.getOrDefault("orders", List.of()).contains(entity)) return "Order";
+    @SuppressWarnings("unchecked")
+    private String inferEntityType(String entity, Map<String, Object> preprocessed) {
+        List<String> products = (List<String>) preprocessed.getOrDefault("products", List.of());
+        List<String> services = (List<String>) preprocessed.getOrDefault("services", List.of());
+        List<String> orders = (List<String>) preprocessed.getOrDefault("orders", List.of());
+        if (products.contains(entity)) return "Product";
+        if (services.contains(entity)) return "Service";
+        if (orders.contains(entity)) return "Order";
         if (entity.contains("?") || entity.contains("如何") || entity.contains("怎么")) return "QA";
         return "Concept";
     }

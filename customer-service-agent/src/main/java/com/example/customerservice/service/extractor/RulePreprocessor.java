@@ -14,8 +14,8 @@ public class RulePreprocessor {
     private static final Pattern ORDER_PATTERN = Pattern.compile("[订单单号][：:]([A-Z0-9]+)");
     private static final Pattern SERVICE_PATTERN = Pattern.compile("(保修|质保|维修|退换|退款|退货|换货)[^。，,\n]*(?:的|是|方式|政策|条件|范围)?");
 
-    public Map<String, List<String>> preprocess(String text) {
-        Map<String, List<String>> extracted = new HashMap<>();
+    public Map<String, Object> preprocess(String text) {
+        Map<String, Object> extracted = new HashMap<>();
         extracted.put("products", extractProducts(text));
         extracted.put("orders", extractOrders(text));
         extracted.put("services", extractServices(text));

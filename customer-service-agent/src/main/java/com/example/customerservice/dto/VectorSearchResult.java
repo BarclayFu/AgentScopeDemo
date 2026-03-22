@@ -15,7 +15,7 @@ public class VectorSearchResult {
     public List<RetrievedChunk> getRetrievedChunks() { return retrievedChunks; }
 }
 
-class RetrievedChunk {
+public class RetrievedChunk {
     private final String content;
     private final double score;
     private final String source;

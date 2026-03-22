@@ -24,7 +24,7 @@ public class RetrievedEntity {
     public double getScore() { return score; }
 }
 
-class RetrievedPath {
+public class RetrievedPath {
     private final String path;
     private final int hopCount;
 

@@ -44,6 +44,12 @@ neo4j:
   password: ${NEO4J_PASSWORD:}
   database: neo4j
 
+# MiniMax LLM configuration (for knowledge graph extraction)
+minimax:
+  api-key: ${CHAT_API_KEY:}
+  base-url: ${CHAT_BASE_URL:https://api.minimax.chat}
+  model-name: MiniMax-M2.7
+
 # Logging configuration
 logging:
   level:

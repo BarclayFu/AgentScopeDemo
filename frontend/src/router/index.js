@@ -6,6 +6,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import KnowledgeView from '@/views/KnowledgeView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import GraphView from '@/views/GraphView.vue'
+import GraphImportView from '@/views/GraphImportView.vue'
 import CompareView from '@/views/CompareView.vue'
 
 const routes = [
@@ -32,6 +33,12 @@ const routes = [
     name: 'graph',
     component: GraphView,
     meta: { title: '知识图谱' }
+  },
+  {
+    path: '/graph/import',
+    name: 'graph-import',
+    component: GraphImportView,
+    meta: { title: '知识图谱导入' }
   },
   {
     path: '/compare',

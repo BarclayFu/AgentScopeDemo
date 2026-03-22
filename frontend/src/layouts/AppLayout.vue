@@ -35,7 +35,8 @@ const menuItems = ref([
   { path: '/', label: '在线客服', icon: '💬' },
   { path: '/dashboard', label: '仪表盘', icon: '📊' },
   { path: '/knowledge', label: '知识库', icon: '📚' },
-  { path: '/graph', label: '知识图谱', icon: '◉' },
+  { path: '/graph', label: '图谱展示', icon: '◉' },
+  { path: '/graph/import', label: '导入数据', icon: '📥' },
   { path: '/compare', label: '对比实验', icon: '⇄' },
   { path: '/settings', label: '设置', icon: '⚙️' }
 ])

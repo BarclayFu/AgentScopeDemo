@@ -53,15 +53,14 @@ public class ComparisonController {
     /**
      * 预览三元组抽取结果
      *
-     * 输入一段文本，预览从中能抽取出的知识图谱三元组。
-     * 用于在添加知识条目前进行预览和验证。
+     * 输入文本内容，预览规则抽取和LLM抽取的结果。
+     * 注意：这只是预览，不会真正存储到Neo4j。
      *
-     * @param request 包含content（文本内容）
-     * @return 抽取出的三元组列表
+     * @param request 包含title和content
+     * @return 抽取预览结果，包含规则三元组、LLM三元组和预处理的实体信息
      */
-    @PostMapping("/extract")
-    public ResponseEntity<TripleExtractResponse> extractTriples(@Valid @RequestBody TripleExtractRequest request) {
-        // TODO: 实现三元组预览功能
-        return ResponseEntity.ok(new TripleExtractResponse(List.of()));
+    @PostMapping("/preview")
+    public TripleExtractResult previewExtract(@Valid @RequestBody TripleExtractRequest request) {
+        return tripleExtractor.previewExtract(request.getTitle(), request.getContent());
     }
 }

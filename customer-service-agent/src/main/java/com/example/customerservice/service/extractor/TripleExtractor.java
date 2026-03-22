@@ -1,5 +1,6 @@
 package com.example.customerservice.service.extractor;
 
+import com.example.customerservice.dto.TripleExtractResult;
 import com.example.customerservice.service.KnowledgeGraphService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,56 @@ public class TripleExtractor {
         this.rulePreprocessor = rulePreprocessor;
         this.llmTripleExtractor = llmTripleExtractor;
         this.knowledgeGraphService = knowledgeGraphService;
+    }
+
+    /**
+     * 预览三元组抽取结果（不存储到Neo4j）
+     *
+     * 用于在添加知识条目前预览会抽取哪些三元组。
+     *
+     * @param title   知识条目标题
+     * @param content 知识条目内容
+     * @return 包含规则抽取结果、LLM抽取结果和预处理的实体信息
+     */
+    public TripleExtractResult previewExtract(String title, String content) {
+        String fullText = title + "\n" + content;
+        List<Map<String, String>> ruleTriples = new ArrayList<>();
+        List<Map<String, String>> llmTriples = new ArrayList<>();
+
+        // 第一步：规则预提取
+        Map<String, Object> preprocessed = rulePreprocessor.preprocess(fullText);
+
+        // 第二步：规则转换为三元组
+        @SuppressWarnings("unchecked")
+        List<String> products = (List<String>) preprocessed.getOrDefault("products", List.of());
+        for (String product : products) {
+            ruleTriples.add(Map.of("subject", product, "relation", "MENTIONS", "object", title));
+        }
+
+        @SuppressWarnings("unchecked")
+        List<String> services = (List<String>) preprocessed.getOrDefault("services", List.of());
+        for (String service : services) {
+            ruleTriples.add(Map.of("subject", title, "relation", "HAS_SERVICE", "object", service));
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> qas = (List<Map<String, String>>) preprocessed.getOrDefault("qas", List.of());
+        for (Map<String, String> qa : qas) {
+            ruleTriples.add(Map.of(
+                "subject", qa.get("question"),
+                "relation", "RELATED_TO",
+                "object", qa.get("answer")
+            ));
+        }
+
+        // 第三步：LLM抽取
+        try {
+            llmTriples = llmTripleExtractor.extractTriples(fullText);
+        } catch (Exception e) {
+            logger.warn("LLM预览抽取失败: {}", e.getMessage());
+        }
+
+        return new TripleExtractResult(ruleTriples, llmTriples, preprocessed);
     }
 
     /**

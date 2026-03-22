@@ -205,10 +205,11 @@ export async function compareSearch(query, limit = 5) {
 
 /**
  * 预览三元组抽取
+ * @param {string} title - 标题
  * @param {string} content - 内容
  */
-export async function previewTripleExtraction(content) {
-  return api.post('/api/compare/extract', { content })
+export async function previewTripleExtraction(title, content) {
+  return api.post('/api/compare/preview', { title, content })
 }
 
 export default api

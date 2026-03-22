@@ -7,6 +7,7 @@ public class KnowledgeEntryResponse {
 
     private final String entryId;
     private final String title;
+    private final String content;
     private final String contentPreview;
     private final String source;
     private final String type;
@@ -16,6 +17,7 @@ public class KnowledgeEntryResponse {
     public KnowledgeEntryResponse(
         String entryId,
         String title,
+        String content,
         String contentPreview,
         String source,
         String type,
@@ -24,6 +26,7 @@ public class KnowledgeEntryResponse {
     ) {
         this.entryId = entryId;
         this.title = title;
+        this.content = content;
         this.contentPreview = contentPreview;
         this.source = source;
         this.type = type;
@@ -37,6 +40,10 @@ public class KnowledgeEntryResponse {
 
     public String getTitle() {
         return title;
+    }
+
+    public String getContent() {
+        return content;
     }
 
     public String getContentPreview() {

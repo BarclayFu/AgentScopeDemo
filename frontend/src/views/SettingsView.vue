@@ -97,8 +97,12 @@ function resetToDefaults() {
 
 <style scoped>
 .settings-view {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   padding: 30px;
   max-width: 800px;
+  overflow-y: auto;
 }
 
 .page-header {

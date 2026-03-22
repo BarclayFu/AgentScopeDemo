@@ -100,6 +100,7 @@ public class KnowledgeBaseService {
                 new KnowledgeEntryResponse(
                     entry.entryId(),
                     entry.title(),
+                    entry.content(),
                     preview(entry.content()),
                     entry.source(),
                     entry.type(),

@@ -37,6 +37,13 @@ milvus:
   # Or for token-based authentication:
   # token: your_milvus_token
 
+# Neo4j configuration
+neo4j:
+  uri: bolt://localhost:7687
+  username: neo4j
+  password: ${NEO4J_PASSWORD:}
+  database: neo4j
+
 # Logging configuration
 logging:
   level:

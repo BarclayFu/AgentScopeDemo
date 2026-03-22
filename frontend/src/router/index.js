@@ -5,6 +5,8 @@ import ChatView from '@/views/ChatView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import KnowledgeView from '@/views/KnowledgeView.vue'
 import SettingsView from '@/views/SettingsView.vue'
+import GraphView from '@/views/GraphView.vue'
+import CompareView from '@/views/CompareView.vue'
 
 const routes = [
   {
@@ -26,6 +28,18 @@ const routes = [
     meta: { title: '知识库管理' }
   },
   {
+    path: '/graph',
+    name: 'graph',
+    component: GraphView,
+    meta: { title: '知识图谱' }
+  },
+  {
+    path: '/compare',
+    name: 'compare',
+    component: CompareView,
+    meta: { title: '对比实验' }
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: SettingsView,
@@ -40,7 +54,7 @@ const router = createRouter({
 
 // 路由守卫 - 设置页面标题
 router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || '智能客服'} - AgentScope`
+  document.title = to.meta.title ? to.meta.title + ' - AgentScope' : '智能客服 - AgentScope'
   next()
 })
 

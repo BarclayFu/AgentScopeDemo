@@ -5,6 +5,9 @@ import com.example.customerservice.dto.KnowledgeEntryListResponse;
 import com.example.customerservice.dto.KnowledgeEntryResponse;
 import com.example.customerservice.dto.KnowledgeOperationResponse;
 import com.example.customerservice.dto.KnowledgeStatusResponse;
+import com.example.customerservice.dto.RetrievedChunk;
+import com.example.customerservice.dto.VectorSearchResult;
+import com.example.customerservice.service.extractor.TripleExtractor;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.rag.Knowledge;
@@ -54,6 +57,7 @@ public class KnowledgeBaseService {
 
     private final Knowledge knowledgeBase;
     private final ObjectMapper objectMapper;
+    private final TripleExtractor tripleExtractor;
     private final Map<String, ManagedKnowledgeEntry> entries =
         new LinkedHashMap<>();
 
@@ -61,9 +65,10 @@ public class KnowledgeBaseService {
     private volatile Long lastRebuildAt;
     private volatile String lastOperationMessage = "知识库尚未执行管理操作";
 
-    public KnowledgeBaseService(Knowledge knowledgeBase, ObjectMapper objectMapper) {
+    public KnowledgeBaseService(Knowledge knowledgeBase, ObjectMapper objectMapper, TripleExtractor tripleExtractor) {
         this.knowledgeBase = knowledgeBase;
         this.objectMapper = objectMapper;
+        this.tripleExtractor = tripleExtractor;
     }
 
     /**
@@ -151,6 +156,14 @@ public class KnowledgeBaseService {
 
         lastUpdatedAt = now;
         lastOperationMessage = "已新增知识条目: " + entry.title();
+
+        // Extract triples to Neo4j
+        try {
+            tripleExtractor.extractAndStore(entry.getEntryId(), entry.getTitle(), entry.getContent());
+        } catch (Exception e) {
+            logger.warn("Failed to extract triples for entry {}: {}", entry.getEntryId(), e.getMessage());
+        }
+
         return new KnowledgeOperationResponse(
             "知识条目已创建",
             entryId,
@@ -268,6 +281,44 @@ public class KnowledgeBaseService {
         } catch (Exception e) {
             logger.error("知识库检索失败，question={}", question, e);
             return "抱歉，检索知识库时发生错误，请稍后再试。";
+        }
+    }
+
+    /**
+     * 检索知识库并返回结构化结果
+     *
+     * @param question 用户问题
+     * @param limit 返回结果数量限制
+     * @return 结构化检索结果
+     */
+    public synchronized VectorSearchResult searchKnowledgeBaseStructured(String question, int limit) {
+        try {
+            RetrieveConfig config = RetrieveConfig.builder()
+                .limit(limit > 0 ? limit : 10)
+                .scoreThreshold(0.3)
+                .build();
+
+            List<Document> results = knowledgeBase.retrieve(question, config).block();
+            List<RetrievedChunk> chunks = new ArrayList<>();
+
+            if (results != null) {
+                for (Document doc : results) {
+                    String content = doc.getMetadata().getContentText();
+                    double score = doc.getScore();
+                    String title = doc.getPayloadValueAs("title", String.class);
+                    chunks.add(new RetrievedChunk(content != null ? content : "", score, title));
+                }
+            }
+
+            String answer = chunks.isEmpty()
+                ? "抱歉，知识库中没有找到与您的问题相关的信息。"
+                : "根据知识库中的信息，为您找到以下相关内容：\n\n" +
+                  String.join("\n\n", chunks.stream().limit(3).map(RetrievedChunk::getContent).toList());
+
+            return new VectorSearchResult(answer, chunks);
+        } catch (Exception e) {
+            logger.error("知识库检索失败，question={}", question, e);
+            return new VectorSearchResult("抱歉，检索知识库时发生错误，请稍后再试。", List.of());
         }
     }
 

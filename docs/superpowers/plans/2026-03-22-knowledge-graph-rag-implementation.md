@@ -112,6 +112,7 @@ neo4j:
 ```java
 package com.example.customerservice.config;
 
+import jakarta.annotation.PreDestroy;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
@@ -614,10 +615,12 @@ public class RulePreprocessor {
 ```java
 package com.example.customerservice.service.extractor;
 
-import com.example.customerservice.dto.ChatRequest;
-import com.example.customerservice.service.ChatService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -640,17 +643,22 @@ public class LLMTripleExtractor {
             4. 输出纯JSON数组，不要包含其他文字
             """;
 
-    private final ChatService chatService;
+    private final OpenAIChatModel chatModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public LLMTripleExtractor(ChatService chatService) {
-        this.chatService = chatService;
+    public LLMTripleExtractor(OpenAIChatModel chatModel) {
+        this.chatModel = chatModel;
     }
 
     public List<Map<String, String>> extractTriples(String text) {
         String userPrompt = "输入文本: " + text + "\n\n请提取三元组，输出JSON数组:";
-        ChatRequest request = new ChatRequest("system", SYSTEM_PROMPT + "\n\n" + userPrompt);
-        String response = chatService.getSyncResponseWithoutHistory(List.of(request));
+
+        List<Msg> messages = List.of(
+            Msg.of(MsgRole.System, TextBlock.of(SYSTEM_PROMPT)),
+            Msg.of(MsgRole.User, TextBlock.of(userPrompt))
+        );
+
+        String response = chatModel.chat(messages).get(0).getTextContent();
 
         return parseTriples(response);
     }
@@ -798,6 +806,42 @@ Add after entry is created in `createEntry`:
 tripleExtractor.extractAndStore(entry.getEntryId(), entry.getTitle(), entry.getContent());
 ```
 
+- [ ] **Step 2: Add searchKnowledgeBaseStructured method**
+
+Add new method to KnowledgeBaseService that returns structured results for comparison:
+```java
+public synchronized VectorSearchResult searchKnowledgeBaseStructured(String question, int limit) {
+    try {
+        RetrieveConfig config = RetrieveConfig.builder()
+            .limit(limit > 0 ? limit : 10)
+            .scoreThreshold(0.3)
+            .build();
+
+        List<Document> results = knowledgeBase.retrieve(question, config).block();
+        List<RetrievedChunk> chunks = new ArrayList<>();
+
+        if (results != null) {
+            for (Document doc : results) {
+                String content = doc.getMetadata().getContentText();
+                double score = doc.getScore();
+                String title = doc.getPayloadValueAs("title", String.class);
+                chunks.add(new RetrievedChunk(content != null ? content : "", score, title));
+            }
+        }
+
+        String answer = chunks.isEmpty()
+            ? "抱歉，知识库中没有找到与您的问题相关的信息。"
+            : "根据知识库中的信息，为您找到以下相关内容：\n\n" +
+              String.join("\n\n", chunks.stream().limit(3).map(c -> c.getContent()).toList());
+
+        return new VectorSearchResult(answer, chunks);
+    } catch (Exception e) {
+        logger.error("知识库检索失败，question={}", question, e);
+        return new VectorSearchResult("抱歉，检索知识库时发生错误，请稍后再试。", List.of());
+    }
+}
+```
+
 ---
 
 ## Phase 3: GraphRAG Retrieval
@@ -808,6 +852,7 @@ tripleExtractor.extractAndStore(entry.getEntryId(), entry.getTitle(), entry.getC
 - Create: `customer-service-agent/src/main/java/com/example/customerservice/service/retriever/GraphRAGRetriever.java`
 - Create: `customer-service-agent/src/main/java/com/example/customerservice/dto/GraphSearchResult.java`
 - Create: `customer-service-agent/src/main/java/com/example/customerservice/dto/RetrievedEntity.java`
+- Create: `customer-service-agent/src/main/java/com/example/customerservice/dto/VectorSearchResult.java`
 
 - [ ] **Step 1: Create RetrievedEntity.java**
 
@@ -852,7 +897,44 @@ class RetrievedPath {
 }
 ```
 
-- [ ] **Step 2: Create GraphSearchResult.java**
+- [ ] **Step 2: Create VectorSearchResult.java**
+
+```java
+package com.example.customerservice.dto;
+
+import java.util.List;
+
+public class VectorSearchResult {
+    private final String answer;
+    private final List<RetrievedChunk> retrievedChunks;
+
+    public VectorSearchResult(String answer, List<RetrievedChunk> retrievedChunks) {
+        this.answer = answer;
+        this.retrievedChunks = retrievedChunks;
+    }
+
+    public String getAnswer() { return answer; }
+    public List<RetrievedChunk> getRetrievedChunks() { return retrievedChunks; }
+}
+
+class RetrievedChunk {
+    private final String content;
+    private final double score;
+    private final String source;
+
+    public RetrievedChunk(String content, double score, String source) {
+        this.content = content;
+        this.score = score;
+        this.source = source;
+    }
+
+    public String getContent() { return content; }
+    public double getScore() { return score; }
+    public String getSource() { return source; }
+}
+```
+
+- [ ] **Step 3: Create GraphSearchResult.java**
 
 ```java
 package com.example.customerservice.dto;
@@ -1143,8 +1225,10 @@ public class HybridRAGService {
     }
 
     public HybridSearchResult hybridSearch(String query, int limit) {
+        // Note: KnowledgeBaseService needs a new method searchKnowledgeBaseStructured(query, limit)
+        // that returns VectorSearchResult instead of plain String
         CompletableFuture<VectorSearchResult> vectorFuture = CompletableFuture.supplyAsync(
-            () -> knowledgeBaseService.searchKnowledgeBase(query, limit)
+            () -> knowledgeBaseService.searchKnowledgeBaseStructured(query, limit)
         );
 
         CompletableFuture<GraphSearchResult> graphFuture = CompletableFuture.supplyAsync(

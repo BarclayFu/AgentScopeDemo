@@ -127,7 +127,7 @@ public class GraphRAGRetriever {
                     String rId = String.valueOf(rel.id());
                     if (!seenEdges.contains(rId)) {
                         seenEdges.add(rId);
-                        edges.add(new GraphEdgeResponse(rId, String.valueOf(rel.start()), String.valueOf(rel.end()), rel.type()));
+                        edges.add(new GraphEdgeResponse(rId, String.valueOf(rel.startNode().id()), String.valueOf(rel.endNode().id()), rel.type()));
                     }
                 }
             }

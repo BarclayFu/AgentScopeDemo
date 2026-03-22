@@ -77,6 +77,13 @@
             <version>2.6.13</version>
         </dependency>
 
+        <!-- Neo4j Java Driver - For knowledge graph storage and retrieval -->
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>5.24.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

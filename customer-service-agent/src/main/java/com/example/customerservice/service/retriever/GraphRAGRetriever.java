@@ -175,10 +175,9 @@ public class GraphRAGRetriever {
             // 2. 查找N跳内的所有关联节点和边
             // 3. 使用DISTINCT去重
             var result = session.run(
-                "MATCH path = (n) WHERE id(n) IN [" + idsParam + "] " +
-                "MATCH path = (n)-[r*1.." + hops + "]-(m) " +
-                "WITH n, r, m, path " +
-                "RETURN distinct n, r, m"
+                "MATCH (n)-[r*1.." + hops + "]-(m) WHERE id(n) IN [" + idsParam + "] " +
+                "WITH DISTINCT n, r, m " +
+                "RETURN n, r, m"
             );
 
             Set<String> seenNodes = new HashSet<>();

@@ -55,6 +55,13 @@ public class CategoryService {
     public CategoryResponse createCategory(String name, String parentId) throws IOException {
         validateName(name);
 
+        // Check for duplicate name under same parent
+        boolean duplicateExists = categories.values().stream()
+            .anyMatch(c -> c.name().equals(name) && Objects.equals(c.parentId(), parentId));
+        if (duplicateExists) {
+            throw new IllegalArgumentException("同级分类下已存在同名分类: " + name);
+        }
+
         long now = Instant.now().toEpochMilli();
         String id = "cat-" + UUID.randomUUID().toString().substring(0, 8);
 
@@ -80,6 +87,7 @@ public class CategoryService {
     }
 
     public CategoryResponse updateCategory(String id, String newName) throws IOException {
+        validateId(id);
         Category existing = categories.get(id);
         if (existing == null) {
             throw new IllegalArgumentException("分类不存在: " + id);
@@ -103,6 +111,7 @@ public class CategoryService {
     }
 
     public void deleteCategory(String id) throws IOException {
+        validateId(id);
         Category category = categories.remove(id);
         if (category == null) {
             throw new IllegalArgumentException("分类不存在: " + id);
@@ -112,14 +121,15 @@ public class CategoryService {
         entryCategories.entrySet().removeIf(e -> e.getValue().categoryId().equals(id));
 
         // Move children to grandparent (reparent to deleted category's parent)
+        Category grandparent = category.parentId() != null ? categories.get(category.parentId()) : null;
         for (Category child : categories.values()) {
             if (id.equals(child.parentId())) {
-                String newPath = category.parentId() == null
+                String newPath = grandparent == null
                     ? "/" + child.name()
-                    : categories.get(category.parentId()).path() + "/" + child.name();
+                    : grandparent.path() + "/" + child.name();
                 Category updated = new Category(
                     child.id(), child.name(), category.parentId(), newPath,
-                    category.parentId() == null ? 0 : categories.get(category.parentId()).level() + 1,
+                    grandparent == null ? 0 : grandparent.level() + 1,
                     child.createdAt(), Instant.now().toEpochMilli()
                 );
                 categories.put(child.id(), updated);
@@ -133,6 +143,8 @@ public class CategoryService {
     }
 
     public void addEntryToCategory(String entryId, String categoryId) throws IOException {
+        validateEntryId(entryId);
+        validateId(categoryId);
         if (!categories.containsKey(categoryId)) {
             throw new IllegalArgumentException("分类不存在: " + categoryId);
         }
@@ -151,6 +163,8 @@ public class CategoryService {
     }
 
     public void removeEntryFromCategory(String entryId, String categoryId) throws IOException {
+        validateEntryId(entryId);
+        validateId(categoryId);
         entryCategories.entrySet().removeIf(e ->
             e.getValue().entryId().equals(entryId) && e.getValue().categoryId().equals(categoryId)
         );
@@ -158,6 +172,7 @@ public class CategoryService {
     }
 
     public List<String> getCategoryIdsForEntry(String entryId) {
+        validateEntryId(entryId);
         return entryCategories.values().stream()
             .filter(ec -> ec.entryId().equals(entryId))
             .map(EntryCategory::categoryId)
@@ -165,6 +180,7 @@ public class CategoryService {
     }
 
     public List<String> getEntryIdsForCategory(String categoryId) {
+        validateId(categoryId);
         return entryCategories.values().stream()
             .filter(ec -> ec.categoryId().equals(categoryId))
             .map(EntryCategory::entryId)
@@ -172,6 +188,7 @@ public class CategoryService {
     }
 
     public int getEntryCount(String categoryId) {
+        validateId(categoryId);
         return (int) entryCategories.values().stream()
             .filter(ec -> ec.categoryId().equals(categoryId))
             .count();
@@ -193,19 +210,34 @@ public class CategoryService {
     }
 
     private void updateChildPaths(String parentId, String parentPath) {
-        for (Category child : categories.values()) {
-            if (parentId.equals(child.parentId())) {
-                String newPath = parentPath + "/" + child.name();
-                Category updated = new Category(child.id(), child.name(), child.parentId(), newPath, child.level(), child.createdAt(), Instant.now().toEpochMilli());
-                categories.put(child.id(), updated);
-                updateChildPaths(child.id(), newPath);
-            }
+        // Collect children first to avoid ConcurrentModificationException
+        List<Category> children = categories.values().stream()
+            .filter(c -> parentId.equals(c.parentId()))
+            .toList();
+
+        for (Category child : children) {
+            String newPath = parentPath + "/" + child.name();
+            Category updated = new Category(child.id(), child.name(), child.parentId(), newPath, child.level(), child.createdAt(), Instant.now().toEpochMilli());
+            categories.put(child.id(), updated);
+            updateChildPaths(child.id(), newPath);
         }
     }
 
     private void validateName(String name) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("分类名称不能为空");
+        }
+    }
+
+    private void validateId(String id) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("ID不能为空");
+        }
+    }
+
+    private void validateEntryId(String entryId) {
+        if (entryId == null || entryId.isBlank()) {
+            throw new IllegalArgumentException("条目ID不能为空");
         }
     }
 

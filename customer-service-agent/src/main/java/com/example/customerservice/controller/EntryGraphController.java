@@ -115,7 +115,8 @@ public class EntryGraphController {
                     String rId = String.valueOf(rel.id());
                     if (!seenEdges.contains(rId)) {
                         seenEdges.add(rId);
-                        edges.add(new GraphEdgeResponse(rId, rel.startNodeElementId(), rel.endNodeElementId(), rel.type()));
+                        // Use startNodeId/endNodeId to match the node id format from n.id()
+                        edges.add(new GraphEdgeResponse(rId, String.valueOf(rel.startNodeId()), String.valueOf(rel.endNodeId()), rel.type()));
                     }
                 }
             }

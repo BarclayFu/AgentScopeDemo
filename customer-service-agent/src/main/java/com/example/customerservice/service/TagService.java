@@ -105,7 +105,7 @@ public class TagService {
         List<String> result = new ArrayList<>();
         for (Map.Entry<String, Set<String>> e : entryTags.entrySet()) {
             if (e.getValue().contains(tagId)) {
-                result.add(e.getEntryKey());
+                result.add(e.getKey());
             }
         }
         return result;

@@ -104,6 +104,8 @@ public class KnowledgeBaseService {
                     preview(entry.content()),
                     entry.source(),
                     entry.type(),
+                    List.of(),
+                    List.of(),
                     entry.createdAt(),
                     entry.updatedAt()
                 )
@@ -123,6 +125,50 @@ public class KnowledgeBaseService {
         String title = request != null ? request.getTitle() : null;
         String content = request != null ? request.getContent() : null;
         return createManagedEntry(title, content, REGISTRY_SOURCE);
+    }
+
+    public synchronized KnowledgeOperationResponse updateEntry(
+        String entryId,
+        KnowledgeEntryCreateRequest request
+    ) throws IOException {
+        ManagedKnowledgeEntry existing = entries.get(entryId);
+        if (existing == null) {
+            throw new IllegalArgumentException("知识条目不存在: " + entryId);
+        }
+
+        String title = request.getTitle();
+        String content = request.getContent();
+
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("知识标题不能为空");
+        }
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("知识内容不能为空");
+        }
+
+        long now = Instant.now().toEpochMilli();
+        ManagedKnowledgeEntry updated = new ManagedKnowledgeEntry(
+            existing.entryId(),
+            title.trim(),
+            content.trim(),
+            existing.source(),
+            existing.type(),
+            existing.createdAt(),
+            now,
+            existing.chunkIds()
+        );
+
+        entries.put(entryId, updated);
+        persistRegistry();
+
+        lastUpdatedAt = now;
+        lastOperationMessage = "已更新知识条目: " + updated.title();
+
+        return new KnowledgeOperationResponse(
+            "知识条目已更新",
+            entryId,
+            now
+        );
     }
 
     public synchronized KnowledgeOperationResponse createManagedEntry(

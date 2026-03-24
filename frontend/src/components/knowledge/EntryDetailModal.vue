@@ -6,6 +6,7 @@ defineOptions({
 import { ref, watch, computed } from 'vue'
 import TagInput from './TagInput.vue'
 import CategoryTree from './CategoryTree.vue'
+import CytoscapeGraph from './CytoscapeGraph.vue'
 import { getEntryGraph, createTag } from '@/api'
 
 const props = defineProps({
@@ -39,35 +40,7 @@ const categoryExpandedIds = ref(new Set())
 const graphData = ref(null)
 const graphLoading = ref(false)
 
-// Watch entry prop changes to initialize editing state and load graph
-watch(
-  () => props.entry,
-  (newEntry) => {
-    if (newEntry) {
-      editedTitle.value = newEntry.title || ''
-      editedContent.value = newEntry.content || ''
-      editedTags.value = Array.isArray(newEntry.tags) ? [...newEntry.tags] : []
-      editedCategoryId.value = newEntry.categoryId || null
-
-      // Load graph data when entry changes
-      loadGraphData(newEntry.id)
-    } else {
-      resetState()
-    }
-  },
-  { immediate: true }
-)
-
-// Also load graph when show becomes true
-watch(
-  () => props.show,
-  (newShow) => {
-    if (newShow && props.entry) {
-      loadGraphData(props.entry.id)
-    }
-  }
-)
-
+// Functions (defined before watches that use them)
 const loadGraphData = async (entryId) => {
   if (!entryId) return
 
@@ -96,17 +69,36 @@ const resetState = () => {
   categoryExpandedIds.value = new Set()
 }
 
+// Watch entry prop changes to initialize editing state and load graph
+watch(
+  () => props.entry,
+  (newEntry) => {
+    if (newEntry) {
+      editedTitle.value = newEntry.title || ''
+      editedContent.value = newEntry.content || ''
+      editedTags.value = Array.isArray(newEntry.tags) ? [...newEntry.tags] : []
+      editedCategoryId.value = newEntry.categoryId || null
+
+      // Load graph data when entry changes
+      loadGraphData(newEntry.id)
+    } else {
+      resetState()
+    }
+  },
+  { immediate: true }
+)
+
+// Also load graph when show becomes true
+watch(
+  () => props.show,
+  (newShow) => {
+    if (newShow && props.entry) {
+      loadGraphData(props.entry.entryId)
+    }
+  }
+)
+
 // Computed properties
-const nodeCount = computed(() => {
-  if (!graphData.value?.nodes) return 0
-  return graphData.value.nodes.length
-})
-
-const edgeCount = computed(() => {
-  if (!graphData.value?.edges) return 0
-  return graphData.value.edges.length
-})
-
 const selectedCategoryName = computed(() => {
   if (!props.categoryTree || !editedCategoryId.value) return '未分类'
 
@@ -183,7 +175,7 @@ const handleSave = () => {
 
 const handleDelete = () => {
   if (confirm('确定要删除这个条目吗？此操作不可撤销。')) {
-    emit('delete', props.entry.id)
+    emit('delete', props.entry.entryId)
   }
 }
 </script>
@@ -259,6 +251,9 @@ const handleDelete = () => {
           <div class="right-panel">
             <div class="graph-header">
               <h3 class="graph-title">知识图谱</h3>
+              <span v-if="graphData" class="graph-stats">
+                {{ graphData.nodes?.length || 0 }} 节点 / {{ graphData.edges?.length || 0 }} 边
+              </span>
             </div>
             <div class="graph-container">
               <!-- Loading State -->
@@ -267,22 +262,13 @@ const handleDelete = () => {
                 <span>加载图谱数据...</span>
               </div>
 
-              <!-- Graph Placeholder (showing node/edge count) -->
-              <div v-else-if="graphData" class="graph-placeholder">
-                <div class="graph-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">节点</span>
-                    <span class="stat-value">{{ nodeCount }}</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">边</span>
-                    <span class="stat-value">{{ edgeCount }}</span>
-                  </div>
-                </div>
-                <div v-if="nodeCount === 0" class="graph-empty">
-                  暂无关联数据
-                </div>
-              </div>
+              <!-- Graph with Cytoscape -->
+              <CytoscapeGraph
+                v-else-if="graphData"
+                :nodes="graphData.nodes || []"
+                :edges="graphData.edges || []"
+                height="100%"
+              />
 
               <!-- No Entry Selected -->
               <div v-else class="graph-placeholder">
@@ -499,6 +485,9 @@ const handleDelete = () => {
 /* Graph Panel Styles */
 .graph-header {
   margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .graph-title {
@@ -506,6 +495,11 @@ const handleDelete = () => {
   font-size: 16px;
   font-weight: 600;
   color: #333;
+}
+
+.graph-stats {
+  font-size: 12px;
+  color: #666;
 }
 
 .graph-container {
@@ -517,6 +511,7 @@ const handleDelete = () => {
   border-radius: 8px;
   border: 1px solid #e0e0e0;
   min-height: 300px;
+  overflow: hidden;
 }
 
 .graph-loading {
@@ -546,32 +541,9 @@ const handleDelete = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 40px;
-}
-
-.graph-stats {
-  display: flex;
-  gap: 40px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #666;
-  text-transform: uppercase;
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 600;
-  color: #333;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
 }
 
 .graph-empty {

@@ -70,7 +70,7 @@
           <article
             v-for="entry in filteredEntries"
             v-else
-            :key="entry.id"
+            :key="entry.entryId"
             class="entry-card"
             @click="handleEntryClick(entry)"
           >
@@ -161,7 +161,8 @@ const currentCategoryName = computed(() => {
 async function loadCategoryTree() {
   try {
     const data = await getCategoryTree()
-    categoryTree.value = data || []
+    // API returns { categories: [...] } but axios unwraps to the object
+    categoryTree.value = (data && data.categories) ? data.categories : []
   } catch (error) {
     console.error('Failed to load category tree:', error)
     errorMessage.value = '分类目录加载失败'
@@ -246,7 +247,7 @@ function handleEntryClick(entry) {
 function handleAddEntry() {
   // Create a new empty entry for the modal
   selectedEntry.value = {
-    id: null,
+    entryId: null,
     title: '',
     content: '',
     tags: [],
@@ -263,9 +264,9 @@ function handleCloseModal() {
 
 async function handleSave(entryData) {
   try {
-    if (entryData.id) {
+    if (entryData.entryId) {
       // Update existing entry
-      await updateKnowledgeEntry(entryData.id, {
+      await updateKnowledgeEntry(entryData.entryId, {
         title: entryData.title,
         content: entryData.content,
         tagIds: entryData.tags?.map(t => t.id).filter(Boolean) || [],

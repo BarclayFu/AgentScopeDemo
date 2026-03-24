@@ -1,5 +1,7 @@
 package com.example.customerservice.dto;
 
+import java.util.List;
+
 /**
  * 知识条目响应
  */
@@ -11,6 +13,8 @@ public class KnowledgeEntryResponse {
     private final String contentPreview;
     private final String source;
     private final String type;
+    private final List<String> categoryIds;
+    private final List<String> tagIds;
     private final long createdAt;
     private final long updatedAt;
 
@@ -21,6 +25,8 @@ public class KnowledgeEntryResponse {
         String contentPreview,
         String source,
         String type,
+        List<String> categoryIds,
+        List<String> tagIds,
         long createdAt,
         long updatedAt
     ) {
@@ -30,6 +36,8 @@ public class KnowledgeEntryResponse {
         this.contentPreview = contentPreview;
         this.source = source;
         this.type = type;
+        this.categoryIds = categoryIds != null ? categoryIds : List.of();
+        this.tagIds = tagIds != null ? tagIds : List.of();
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -56,6 +64,14 @@ public class KnowledgeEntryResponse {
 
     public String getType() {
         return type;
+    }
+
+    public List<String> getCategoryIds() {
+        return categoryIds;
+    }
+
+    public List<String> getTagIds() {
+        return tagIds;
     }
 
     public long getCreatedAt() {

@@ -138,8 +138,8 @@ export async function getSystemStatus() {
 
 // ==================== 知识库管理 API ====================
 
-export async function getKnowledgeEntries() {
-  return api.get('/api/knowledge/entries')
+export async function getKnowledgeEntries(params = {}) {
+  return api.get('/api/knowledge/entries', { params })
 }
 
 export async function createKnowledgeEntry(payload) {
@@ -156,6 +156,54 @@ export async function rebuildKnowledgeBase() {
 
 export async function getKnowledgeStatus() {
   return api.get('/api/knowledge/status')
+}
+
+// ==================== 知识库分类 API ====================
+
+export async function getCategoryTree() {
+  return api.get('/api/knowledge/categories')
+}
+
+export async function listCategories() {
+  return api.get('/api/knowledge/categories/list')
+}
+
+export async function createCategory(name, parentId = null) {
+  return api.post('/api/knowledge/categories', { name, parentId })
+}
+
+export async function updateCategory(id, name) {
+  return api.put(`/api/knowledge/categories/${id}`, { name })
+}
+
+export async function deleteCategory(id) {
+  return api.delete(`/api/knowledge/categories/${id}`)
+}
+
+// ==================== 知识库标签 API ====================
+
+export async function getTags() {
+  return api.get('/api/knowledge/tags')
+}
+
+export async function createTag(name) {
+  return api.post('/api/knowledge/tags', { name })
+}
+
+export async function deleteTag(id) {
+  return api.delete(`/api/knowledge/tags/${id}`)
+}
+
+// ==================== 条目图谱 API ====================
+
+export async function getEntryGraph(entryId) {
+  return api.get(`/api/knowledge/entries/${entryId}/graph`)
+}
+
+// ==================== 扩展现有条目 API ====================
+
+export async function updateKnowledgeEntry(entryId, payload) {
+  return api.put(`/api/knowledge/entries/${entryId}`, payload)
 }
 
 // ==================== 图谱API ====================

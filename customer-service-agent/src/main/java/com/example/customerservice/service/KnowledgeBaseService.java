@@ -332,6 +332,17 @@ public class KnowledgeBaseService {
         return knowledgeBase != null;
     }
 
+    /**
+     * 获取知识条目的标题
+     *
+     * @param entryId 知识条目ID
+     * @return 标题，如果不存在则返回null
+     */
+    public String getEntryTitle(String entryId) {
+        ManagedKnowledgeEntry entry = entries.get(entryId);
+        return entry != null ? entry.title() : null;
+    }
+
     private void seedDefaultEntries() throws IOException {
         logger.info("知识库注册表为空，开始写入默认知识条目");
         long now = Instant.now().toEpochMilli();

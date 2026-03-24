@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build
+target/
+dist/
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Local config
+*.local
+.env
+
+# .superpowers plugin
+.superpowers/
+
+# Test output
+test-output/
+
+# Data files (runtime generated)
+customer-service-agent/data/knowledge-entries.json
+customer-service-agent/data/

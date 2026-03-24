@@ -4,7 +4,6 @@ import com.example.customerservice.dto.EntryGraphResponse;
 import com.example.customerservice.dto.GraphEdgeResponse;
 import com.example.customerservice.dto.GraphNodeResponse;
 import com.example.customerservice.service.KnowledgeBaseService;
-import com.example.customerservice.service.retriever.GraphRAGRetriever;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Record;
@@ -12,18 +11,17 @@ import org.neo4j.driver.types.Relationship;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/knowledge/entries")
 public class EntryGraphController {
 
     private final KnowledgeBaseService knowledgeBaseService;
-    private final GraphRAGRetriever graphRAGRetriever;
     private final Driver driver;
 
-    public EntryGraphController(KnowledgeBaseService knowledgeBaseService, GraphRAGRetriever graphRAGRetriever, Driver driver) {
+    public EntryGraphController(KnowledgeBaseService knowledgeBaseService, Driver driver) {
         this.knowledgeBaseService = knowledgeBaseService;
-        this.graphRAGRetriever = graphRAGRetriever;
         this.driver = driver;
     }
 
@@ -70,18 +68,22 @@ public class EntryGraphController {
         List<GraphNodeResponse> nodes = new ArrayList<>();
         List<GraphEdgeResponse> edges = new ArrayList<>();
 
+        subgraph.put("nodes", nodes);
+        subgraph.put("edges", edges);
+
         if (entityIds.isEmpty()) {
-            subgraph.put("nodes", nodes);
-            subgraph.put("edges", edges);
             return subgraph;
         }
 
         try (Session session = driver.session()) {
-            String idsParam = entityIds.stream().collect(Collectors.joining(","));
+            List<Long> idLongs = entityIds.stream()
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
             var result = session.run(
-                "MATCH (n)-[r*1.." + hops + "]-(m) WHERE id(n) IN [" + idsParam + "] " +
+                "MATCH (n)-[r*1.." + hops + "]-(m) WHERE id(n) IN $ids " +
                 "WITH DISTINCT n, r, m " +
-                "RETURN n, r, m"
+                "RETURN n, r, m",
+                Map.of("ids", idLongs)
             );
 
             Set<String> seenNodes = new HashSet<>();
@@ -95,13 +97,17 @@ public class EntryGraphController {
                 String nId = String.valueOf(n.id());
                 if (!seenNodes.contains(nId)) {
                     seenNodes.add(nId);
-                    nodes.add(new GraphNodeResponse(nId, n.labels().iterator().next(), n.get("name").asString(), n.asMap()));
+                    String nLabel = n.labels().iterator().hasNext() ? n.labels().iterator().next() : "UNKNOWN";
+                    String nName = n.get("name").asString("");
+                    nodes.add(new GraphNodeResponse(nId, nLabel, nName, n.asMap()));
                 }
 
                 String mId = String.valueOf(m.id());
                 if (!seenNodes.contains(mId)) {
                     seenNodes.add(mId);
-                    nodes.add(new GraphNodeResponse(mId, m.labels().iterator().next(), m.get("name").asString(), m.asMap()));
+                    String mLabel = m.labels().iterator().hasNext() ? m.labels().iterator().next() : "UNKNOWN";
+                    String mName = m.get("name").asString("");
+                    nodes.add(new GraphNodeResponse(mId, mLabel, mName, m.asMap()));
                 }
 
                 for (Object relObj : rels) {
@@ -113,15 +119,17 @@ public class EntryGraphController {
                     }
                 }
             }
+        } catch (Exception e) {
+            // Log error but return empty subgraph on failure
+            // In production, use a proper logger: log.error("Failed to build subgraph", e);
         }
 
-        subgraph.put("nodes", nodes);
-        subgraph.put("edges", edges);
         return subgraph;
     }
 
     private List<String> findRelatedEntries(String entryId, Set<String> entityIds) {
-        // Return empty for now - can be enhanced to find entries with similar entities
+        // Stub: Returns empty list. Future implementation should find entries
+        // that share similar graph entities with the given entryId.
         return List.of();
     }
 }

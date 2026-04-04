@@ -51,6 +51,33 @@
             <div v-if="msg.isStreaming" class="typing-indicator">
               <span></span><span></span><span></span>
             </div>
+            <div
+              v-if="msg.role === 'assistant' && !msg.isStreaming && (msg.retrievalMode || msg.citations?.length)"
+              class="message-meta"
+            >
+              <div v-if="msg.retrievalMode" class="retrieval-badge">
+                检索模式: {{ msg.retrievalMode }}
+              </div>
+              <div v-if="msg.citations?.length" class="citation-list">
+                <div
+                  v-for="(citation, index) in msg.citations"
+                  :key="`${msg.id}-citation-${index}`"
+                  class="citation-item"
+                >
+                  <div class="citation-header">
+                    <span class="citation-type-badge" :class="citation.type">
+                      {{ citation.type === 'vector_chunk' ? '📄 知识片段' : '🔗 图谱路径' }}
+                    </span>
+                    <span v-if="citation.score" class="score-bar">
+                      <div class="score-fill" :style="{ width: (citation.score * 100) + '%' }"></div>
+                    </span>
+                  </div>
+                  <strong>{{ citationLabel(citation) }}</strong>
+                  <span v-if="citation.snippet">：{{ citation.snippet }}</span>
+                  <span v-else-if="citation.path">：{{ citation.path }}</span>
+                </div>
+              </div>
+            </div>
             <div class="message-time">
               {{ formatTime(msg.timestamp) }}
             </div>
@@ -197,6 +224,15 @@ async function sendMessage() {
 
         // 刷新活跃会话数
         fetchActiveSessions()
+      } else if (data.metadata) {
+        const currentContent = messages.value.find(m => m.role === 'assistant' && m.isStreaming)
+        if (currentContent) {
+          chatStore.addAssistantMessage(currentContent.content, true, {
+            citations: data.metadata.citations || [],
+            retrievalMode: data.metadata.retrievalMode || null,
+            fallbackMode: data.metadata.fallbackMode || null
+          })
+        }
       } else {
         const currentContent = messages.value.find(m => m.role === 'assistant' && m.isStreaming)
         if (currentContent) {
@@ -273,6 +309,16 @@ function formatTime(timestamp) {
   if (!timestamp) return ''
   const date = new Date(timestamp)
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function citationLabel(citation) {
+  if (citation.type === 'vector_chunk') {
+    return citation.title || '知识片段'
+  }
+  if (citation.type === 'graph_path') {
+    return citation.entityName || '图谱路径'
+  }
+  return '引用'
 }
 
 // 获取活跃会话数
@@ -487,6 +533,72 @@ onMounted(() => {
 
 .message-text.streaming {
   min-height: 24px;
+}
+
+.message-meta {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.retrieval-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef3ff;
+  color: #3556a8;
+  font-size: 12px;
+}
+
+.citation-list {
+  display: grid;
+  gap: 6px;
+}
+
+.citation-item {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b6472;
+  background: #f7f9fc;
+  border: 1px solid #e4e9f2;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.citation-header {
+  margin-bottom: 4px;
+}
+
+.citation-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-right: 6px;
+}
+.citation-type-badge.vector_chunk {
+  background: #e8f4fd;
+  color: #1a73e8;
+}
+.citation-type-badge.graph_path {
+  background: #f3e8fd;
+  color: #9334e9;
+}
+.score-bar {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  background: #e4e9f2;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 3px;
 }
 
 /* 消息内容中的表格和预格式化文本 */

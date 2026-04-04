@@ -154,9 +154,10 @@ public class HybridAnswerService {
         for (RetrievedEntity entity : entities) {
             if (entity.getEntityName() == null) continue;
             answer.append(idx++).append(". ");
+            String type = entity.getEntityType() != null ? entity.getEntityType() : "未知类型";
             answer.append(entity.getEntityName())
                   .append("（")
-                  .append(entity.getEntityType())
+                  .append(type)
                   .append("）");
             String pathSummary = summarizePath(entity.getRelations());
             if (!pathSummary.isBlank()) {

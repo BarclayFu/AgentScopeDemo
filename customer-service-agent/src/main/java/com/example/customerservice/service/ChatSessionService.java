@@ -1,7 +1,12 @@
 package com.example.customerservice.service;
 
+import com.example.customerservice.dto.ChatMessageResult;
+import com.example.customerservice.dto.HybridAnswerResult;
 import com.example.customerservice.tools.CustomerServiceTools;
 import com.example.customerservice.tools.KnowledgeBaseTools;
+import com.example.customerservice.service.retriever.HybridAnswerService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.message.Msg;
@@ -11,6 +16,7 @@ import io.agentscope.core.model.OpenAIChatModel;
 import io.agentscope.core.tool.Toolkit;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -71,9 +77,17 @@ public class ChatSessionService {
     private CustomerServiceTools customerServiceTools;
 
     private final KnowledgeBaseTools knowledgeBaseTools;
+    private final HybridAnswerService hybridAnswerService;
+    private final ObjectMapper objectMapper;
 
-    public ChatSessionService(KnowledgeBaseTools knowledgeBaseTools) {
+    public ChatSessionService(
+        KnowledgeBaseTools knowledgeBaseTools,
+        HybridAnswerService hybridAnswerService,
+        ObjectMapper objectMapper
+    ) {
         this.knowledgeBaseTools = knowledgeBaseTools;
+        this.hybridAnswerService = hybridAnswerService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -160,6 +174,17 @@ public class ChatSessionService {
      * @return Agent回复
      */
     public Msg processUserMessage(String userId, String userMessage) {
+        ChatMessageResult result = processUserMessageWithMetadata(
+            userId,
+            userMessage
+        );
+        return buildAssistantMsg(userId, result.getResponse());
+    }
+
+    public ChatMessageResult processUserMessageWithMetadata(
+        String userId,
+        String userMessage
+    ) {
         logger.info("处理用户 {} 的消息: {}", userId, userMessage);
         activityLogger.logMessageProcessingStart(
             "智能客服-" + userId,
@@ -167,34 +192,37 @@ public class ChatSessionService {
         );
 
         if (isProductInfoIntent(userMessage)) {
-            Msg directResponse = handleDirectProductQuery(userId, userMessage);
+            ChatMessageResult directResponse = handleDirectProductQuery(
+                userId,
+                userMessage
+            );
             logger.info(
                 "用户 {} 的消息处理完成（产品信息直出），响应长度: {}, 内容为:{}",
                 userId,
-                directResponse.getTextContent().length(),
-                directResponse.getContent()
+                directResponse.getResponse().length(),
+                directResponse.getResponse()
             );
             activityLogger.logMessageProcessingEnd(
                 "智能客服-" + userId,
-                directResponse.getTextContent()
+                directResponse.getResponse()
             );
             return directResponse;
         }
 
         if (isKnowledgeIntent(userMessage)) {
-            Msg directResponse = handleDirectKnowledgeQuery(
+            ChatMessageResult directResponse = handleDirectKnowledgeQuery(
                 userId,
                 userMessage
             );
             logger.info(
                 "用户 {} 的消息处理完成（知识库直出），响应长度: {}, 内容为:{}",
                 userId,
-                directResponse.getTextContent().length(),
-                directResponse.getContent()
+                directResponse.getResponse().length(),
+                directResponse.getResponse()
             );
             activityLogger.logMessageProcessingEnd(
                 "智能客服-" + userId,
-                directResponse.getTextContent()
+                directResponse.getResponse()
             );
             return directResponse;
         }
@@ -210,53 +238,68 @@ public class ChatSessionService {
         // 调用Agent处理消息
         Msg response = agent.call(userMsg).block();
         response = fallbackIfOrderStatusPending(userId, userMessage, response);
-        response = fallbackIfKnowledgeQueryPending(
-            userId,
-            userMessage,
-            response
-        );
         response = sanitizeAssistantResponse(userId, response);
+
+        String responseText = response != null ? response.getTextContent() : "";
+        ChatMessageResult result = new ChatMessageResult(
+            responseText,
+            List.of(),
+            "agent",
+            "none",
+            System.currentTimeMillis()
+        );
 
         logger.info(
             "用户 {} 的消息处理完成，响应长度: {}, 内容为:{}",
             userId,
-            response != null ? response.getTextContent().length() : 0,
-            response.getContent()
+            responseText.length(),
+            responseText
         );
         activityLogger.logMessageProcessingEnd(
             "智能客服-" + userId,
-            response != null ? response.getTextContent() : ""
+            responseText
         );
 
-        return response;
+        return result;
     }
 
-    private Msg handleDirectProductQuery(String userId, String userMessage) {
+    private ChatMessageResult handleDirectProductQuery(
+        String userId,
+        String userMessage
+    ) {
         String productName = extractProductName(userMessage);
         String result =
             productName != null
                 ? customerServiceTools.queryProductInfo(productName)
                 : "抱歉，我暂时无法识别您咨询的产品名称。请提供更完整的产品名，例如 iPhone 15 Pro。";
-        return Msg.builder()
-            .name("智能客服-" + userId)
-            .role(MsgRole.ASSISTANT)
-            .content(TextBlock.builder().text(result).build())
-            .build();
+        return new ChatMessageResult(
+            result,
+            List.of(),
+            "tool_only",
+            "none",
+            System.currentTimeMillis()
+        );
     }
 
-    private Msg handleDirectKnowledgeQuery(String userId, String userMessage) {
+    private ChatMessageResult handleDirectKnowledgeQuery(
+        String userId,
+        String userMessage
+    ) {
         logger.info(
             "命中知识库问题直出策略，userId={}, question={}",
             userId,
             userMessage
         );
-        String toolResult = knowledgeBaseTools.searchKnowledgeBase(userMessage);
-        String finalText = toolResult;
-        return Msg.builder()
-            .name("智能客服-" + userId)
-            .role(MsgRole.ASSISTANT)
-            .content(TextBlock.builder().text(finalText).build())
-            .build();
+        HybridAnswerResult result = hybridAnswerService.answerQuestion(
+            userMessage
+        );
+        return new ChatMessageResult(
+            result.getAnswer(),
+            result.getCitations(),
+            result.getRetrievalMode(),
+            result.getFallbackMode(),
+            System.currentTimeMillis()
+        );
     }
 
     private Msg fallbackIfOrderStatusPending(
@@ -368,13 +411,19 @@ public class ChatSessionService {
         return hasPendingWord && !hasFinalOrderInfo;
     }
 
-    private Msg fallbackIfKnowledgeQueryPending(
+    private ChatMessageResult fallbackIfKnowledgeQueryPending(
         String userId,
         String userMessage,
         Msg response
     ) {
         if (!isKnowledgeIntent(userMessage)) {
-            return response;
+            return new ChatMessageResult(
+                response != null ? response.getTextContent() : "",
+                List.of(),
+                "agent",
+                "none",
+                System.currentTimeMillis()
+            );
         }
 
         String text = response != null ? response.getTextContent() : "";
@@ -384,7 +433,13 @@ public class ChatSessionService {
                 userId,
                 text
             );
-            return response;
+            return new ChatMessageResult(
+                text,
+                List.of(),
+                "agent",
+                "none",
+                System.currentTimeMillis()
+            );
         }
 
         logger.warn(
@@ -393,33 +448,38 @@ public class ChatSessionService {
             userMessage,
             text
         );
-        String toolResult = knowledgeBaseTools.searchKnowledgeBase(userMessage);
-        String finalText = "为您查询到以下售后相关信息：\n" + toolResult;
-        return Msg.builder()
-            .name("智能客服-" + userId)
-            .role(MsgRole.ASSISTANT)
-            .content(TextBlock.builder().text(finalText).build())
-            .build();
+        HybridAnswerResult result = hybridAnswerService.answerQuestion(
+            userMessage
+        );
+        return new ChatMessageResult(
+            "为您查询到以下售后相关信息：\n" + result.getAnswer(),
+            result.getCitations(),
+            result.getRetrievalMode(),
+            result.getFallbackMode(),
+            System.currentTimeMillis()
+        );
     }
 
     private boolean isKnowledgeIntent(String message) {
         if (message == null || message.isBlank()) {
             return false;
         }
-        boolean policyLike =
-            message.contains("售后") ||
-            message.contains("政策") ||
-            message.contains("规则") ||
-            message.contains("保修") ||
-            message.contains("人工客服") ||
-            message.contains("退换货");
-        boolean businessLike =
-            message.contains("订单") ||
-            message.contains("物流") ||
-            message.contains("退款") ||
-            message.contains("商品") ||
-            extractOrderId(message) != null;
-        return policyLike && !businessLike;
+        // 有明确知识库意图词 → 走知识库
+        String[] knowledgeIntentWords = {
+            "售后", "政策", "规则", "保修", "退换货", "如何",
+            "怎么", "是什么", "哪些", "教程", "流程", "说明",
+            "联系", "人工客服", "工作时间", "地址", "电话"
+        };
+        for (String word : knowledgeIntentWords) {
+            if (message.contains(word)) {
+                return true;
+            }
+        }
+        // 有"订单"且同时有知识库特征词 → 走知识库（如"订单如何保修"）
+        if (message.contains("订单") && message.contains("保修")) {
+            return true;
+        }
+        return false;
     }
 
     private boolean looksLikeKnowledgePendingResponse(String text) {
@@ -488,10 +548,13 @@ public class ChatSessionService {
         return Flux.<String>create(sink -> {
             try {
                 // 处理用户消息获取完整响应
-                Msg response = processUserMessage(userId, userMessage);
-                String fullResponse = response != null
-                    ? sanitizeReasoningContent(response.getTextContent())
-                    : "";
+                ChatMessageResult result = processUserMessageWithMetadata(
+                    userId,
+                    userMessage
+                );
+                String fullResponse = sanitizeReasoningContent(
+                    result.getResponse()
+                );
 
                 logger.info(
                     "用户 {} 的完整响应已获取，长度: {}",
@@ -528,6 +591,8 @@ public class ChatSessionService {
                     );
                 }
 
+                sink.next(buildMetadataEvent(result));
+
                 // 发送结束信号（纯文本，不加data:前缀）
                 sink.next("[DONE]");
                 sink.complete();
@@ -541,6 +606,32 @@ public class ChatSessionService {
             // 添加延迟，模拟打字机效果
             .delayElements(Duration.ofMillis(streamInterval))
             .doOnError(error -> logger.error("流式处理出错", error));
+    }
+
+    private String buildMetadataEvent(ChatMessageResult result)
+        throws JsonProcessingException {
+        return objectMapper.writeValueAsString(
+            Map.of(
+                "type",
+                "metadata",
+                "citations",
+                result.getCitations(),
+                "retrievalMode",
+                result.getRetrievalMode(),
+                "fallbackMode",
+                result.getFallbackMode(),
+                "timestamp",
+                result.getTimestamp()
+            )
+        );
+    }
+
+    private Msg buildAssistantMsg(String userId, String content) {
+        return Msg.builder()
+            .name("智能客服-" + userId)
+            .role(MsgRole.ASSISTANT)
+            .content(TextBlock.builder().text(content).build())
+            .build();
     }
 
     private Msg sanitizeAssistantResponse(String userId, Msg response) {

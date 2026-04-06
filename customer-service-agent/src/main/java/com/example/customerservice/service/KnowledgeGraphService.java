@@ -108,20 +108,117 @@ public class KnowledgeGraphService {
      * 使用MERGE操作确保不会创建重复的节点和边。
      * 如果节点或关系已存在，则直接关联，不会创建新的。
      *
+     * 同时在节点和关系上维护 entryIds，用于后续按知识条目增量更新或删除。
+     *
+     * @param entryId      知识条目ID
      * @param subject     主语实体名称
      * @param subjectType 主语实体类型（如Product, Service等）
      * @param relation    关系类型（如HAS_SERVICE, RELATED_TO等）
      * @param object      宾语实体名称
      * @param objectType  宾语实体类型
      */
-    public void addTriple(String subject, String subjectType, String relation, String object, String objectType) {
+    public void addTriple(
+        String entryId,
+        String subject,
+        String subjectType,
+        String relation,
+        String object,
+        String objectType
+    ) {
+        long now = System.currentTimeMillis();
         try (Session session = driver.session()) {
-            // MERGE: 如果存在则使用，不存在则创建
             session.run(
-                "MERGE (s:" + subjectType + " {name: $subject}) MERGE (o:" + objectType + " {name: $object}) MERGE (s)-[r:" + relation + "]->(o)",
-                Map.of("subject", subject, "object", object)
+                "MERGE (s:" + subjectType + " {name: $subject}) " +
+                "ON CREATE SET s.entryIds = [$entryId], s.createdAt = $now, s.updatedAt = $now " +
+                "ON MATCH SET s.entryIds = CASE " +
+                "  WHEN $entryId IN coalesce(s.entryIds, []) THEN coalesce(s.entryIds, []) " +
+                "  ELSE coalesce(s.entryIds, []) + $entryId END, " +
+                "  s.updatedAt = $now " +
+                "MERGE (o:" + objectType + " {name: $object}) " +
+                "ON CREATE SET o.entryIds = [$entryId], o.createdAt = $now, o.updatedAt = $now " +
+                "ON MATCH SET o.entryIds = CASE " +
+                "  WHEN $entryId IN coalesce(o.entryIds, []) THEN coalesce(o.entryIds, []) " +
+                "  ELSE coalesce(o.entryIds, []) + $entryId END, " +
+                "  o.updatedAt = $now " +
+                "MERGE (s)-[r:" + relation + "]->(o) " +
+                "ON CREATE SET r.entryIds = [$entryId], r.createdAt = $now, r.updatedAt = $now " +
+                "ON MATCH SET r.entryIds = CASE " +
+                "  WHEN $entryId IN coalesce(r.entryIds, []) THEN coalesce(r.entryIds, []) " +
+                "  ELSE coalesce(r.entryIds, []) + $entryId END, " +
+                "  r.updatedAt = $now",
+                Map.of(
+                    "entryId",
+                    entryId,
+                    "subject",
+                    subject,
+                    "object",
+                    object,
+                    "now",
+                    now
+                )
             );
         }
+    }
+
+    /**
+     * 移除某个知识条目在图谱中的引用。
+     *
+     * 仅删除该 entryId 在节点和关系上的归属标记；
+     * 当节点或关系不再被任何知识条目引用时，才真正删除。
+     *
+     * @param entryId 知识条目ID
+     */
+    public void removeEntryReferences(String entryId) {
+        if (entryId == null || entryId.isBlank()) {
+            return;
+        }
+
+        try (Session session = driver.session()) {
+            session.run(
+                "MATCH ()-[r]-() " +
+                "WHERE $entryId IN coalesce(r.entryIds, []) " +
+                "SET r.entryIds = [id IN coalesce(r.entryIds, []) WHERE id <> $entryId]",
+                Map.of("entryId", entryId)
+            );
+
+            session.run(
+                "MATCH ()-[r]-() " +
+                "WHERE size(coalesce(r.entryIds, [])) = 0 " +
+                "DELETE r"
+            );
+
+            session.run(
+                "MATCH (n) " +
+                "WHERE $entryId IN coalesce(n.entryIds, []) " +
+                "SET n.entryIds = [id IN coalesce(n.entryIds, []) WHERE id <> $entryId]",
+                Map.of("entryId", entryId)
+            );
+
+            session.run(
+                "MATCH (n) " +
+                "WHERE size(coalesce(n.entryIds, [])) = 0 AND NOT (n)--() " +
+                "DELETE n"
+            );
+        }
+    }
+
+    public Set<String> findEntityIdsByEntryId(String entryId) {
+        Set<String> ids = new HashSet<>();
+        if (entryId == null || entryId.isBlank()) {
+            return ids;
+        }
+
+        try (Session session = driver.session()) {
+            Result result = session.run(
+                "MATCH (n) WHERE $entryId IN coalesce(n.entryIds, []) RETURN id(n) as id",
+                Map.of("entryId", entryId)
+            );
+            for (Record record : result.list()) {
+                ids.add(String.valueOf(record.get("id").asLong()));
+            }
+        }
+
+        return ids;
     }
 
     /**

@@ -71,6 +71,10 @@ export function createStreamChat(userId, message, onMessage, onError, streamInte
     } else if (data.startsWith('{') || data.startsWith('error')) {
       try {
         const parsed = JSON.parse(data)
+        if (parsed.type === 'metadata') {
+          if (onMessage) onMessage({ metadata: parsed, done: false })
+          return
+        }
         eventSource.close()
         if (onError) onError(parsed.error || 'Unknown error')
       } catch (e) {

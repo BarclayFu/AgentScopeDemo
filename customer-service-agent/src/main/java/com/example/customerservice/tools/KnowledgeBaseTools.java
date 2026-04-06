@@ -1,7 +1,7 @@
 package com.example.customerservice.tools;
 
 import com.example.customerservice.service.AgentActivityLogger;
-import com.example.customerservice.service.KnowledgeBaseService;
+import com.example.customerservice.service.retriever.HybridAnswerService;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import org.slf4j.Logger;
@@ -20,13 +20,13 @@ public class KnowledgeBaseTools {
         KnowledgeBaseTools.class
     );
 
-    private final KnowledgeBaseService knowledgeBaseService;
+    private final HybridAnswerService hybridAnswerService;
 
     @Autowired
     private AgentActivityLogger activityLogger;
 
-    public KnowledgeBaseTools(KnowledgeBaseService knowledgeBaseService) {
-        this.knowledgeBaseService = knowledgeBaseService;
+    public KnowledgeBaseTools(HybridAnswerService hybridAnswerService) {
+        this.hybridAnswerService = hybridAnswerService;
     }
 
     /**
@@ -51,7 +51,7 @@ public class KnowledgeBaseTools {
         );
         logger.info("开始搜索知识库，问题: {}", question);
         try {
-            String result = knowledgeBaseService.searchKnowledgeBase(question);
+            String result = hybridAnswerService.answerQuestion(question).getAnswer();
             logger.info(
                 "知识库搜索完成，结果长度: {}",
                 result != null ? result.length() : 0

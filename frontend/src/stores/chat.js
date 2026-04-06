@@ -11,6 +11,9 @@ function canUseStorage() {
 function cloneMessages(messages = []) {
   return messages.map(message => ({
     ...message,
+    citations: Array.isArray(message.citations) ? message.citations : [],
+    retrievalMode: message.retrievalMode || null,
+    fallbackMode: message.fallbackMode || null,
     isStreaming: false
   }))
 }
@@ -110,7 +113,7 @@ export const useChatStore = defineStore('chat', () => {
   /**
    * 添加助手消息
    */
-  function addAssistantMessage(content, isStreaming = false) {
+  function addAssistantMessage(content, isStreaming = false, metadata = {}) {
     const existingMessage = messages.value.find(
       msg => msg.role === 'assistant' && msg.isStreaming
     )
@@ -119,6 +122,11 @@ export const useChatStore = defineStore('chat', () => {
       // 更新现有消息
       existingMessage.content = content
       existingMessage.isStreaming = isStreaming
+      existingMessage.citations = Array.isArray(metadata.citations)
+        ? metadata.citations
+        : (existingMessage.citations || [])
+      existingMessage.retrievalMode = metadata.retrievalMode || existingMessage.retrievalMode || null
+      existingMessage.fallbackMode = metadata.fallbackMode || existingMessage.fallbackMode || null
       if (!isStreaming) {
         existingMessage.isStreaming = false
         existingMessage.timestamp = new Date().toISOString()
@@ -129,6 +137,9 @@ export const useChatStore = defineStore('chat', () => {
         id: Date.now(),
         role: 'assistant',
         content,
+        citations: Array.isArray(metadata.citations) ? metadata.citations : [],
+        retrievalMode: metadata.retrievalMode || null,
+        fallbackMode: metadata.fallbackMode || null,
         isStreaming,
         timestamp: new Date().toISOString()
       })

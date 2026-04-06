@@ -4,6 +4,7 @@ import com.example.customerservice.dto.EntryGraphResponse;
 import com.example.customerservice.dto.GraphEdgeResponse;
 import com.example.customerservice.dto.GraphNodeResponse;
 import com.example.customerservice.service.KnowledgeBaseService;
+import com.example.customerservice.service.KnowledgeGraphService;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Record;
@@ -18,10 +19,16 @@ import java.util.stream.Collectors;
 public class EntryGraphController {
 
     private final KnowledgeBaseService knowledgeBaseService;
+    private final KnowledgeGraphService knowledgeGraphService;
     private final Driver driver;
 
-    public EntryGraphController(KnowledgeBaseService knowledgeBaseService, Driver driver) {
+    public EntryGraphController(
+        KnowledgeBaseService knowledgeBaseService,
+        KnowledgeGraphService knowledgeGraphService,
+        Driver driver
+    ) {
         this.knowledgeBaseService = knowledgeBaseService;
+        this.knowledgeGraphService = knowledgeGraphService;
         this.driver = driver;
     }
 
@@ -30,8 +37,12 @@ public class EntryGraphController {
         // Get entry title
         String title = knowledgeBaseService.getEntryTitle(entryId);
 
-        // Find related graph nodes based on entry title/content
-        Set<String> matchedEntityIds = findRelatedEntities(title);
+        Set<String> matchedEntityIds = knowledgeGraphService.findEntityIdsByEntryId(
+            entryId
+        );
+        if (matchedEntityIds.isEmpty()) {
+            matchedEntityIds = findRelatedEntities(title);
+        }
 
         // Build subgraph
         Map<String, Object> subgraph = buildSubgraph(matchedEntityIds, 2);

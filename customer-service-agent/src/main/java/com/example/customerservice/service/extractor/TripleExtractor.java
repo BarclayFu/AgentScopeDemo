@@ -159,7 +159,14 @@ public class TripleExtractor {
             // 只有当实体类型都能确定时才存储
             if (subjectType != null && objectType != null) {
                 try {
-                    knowledgeGraphService.addTriple(subject, subjectType, relation, object, objectType);
+                    knowledgeGraphService.addTriple(
+                        knowledgeEntryId,
+                        subject,
+                        subjectType,
+                        relation,
+                        object,
+                        objectType
+                    );
                     logger.debug("已存储三元组: ({})-[:{}]->({})", subject, relation, object);
                 } catch (Exception e) {
                     logger.warn("存储三元组失败: ({})-[:{}]->({})", subject, relation, object);

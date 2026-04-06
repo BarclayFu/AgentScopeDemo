@@ -5,7 +5,7 @@
   "source" : "seed",
   "type" : "text",
   "createdAt" : 1773592693591,
-  "updatedAt" : 1773592695938,
+  "updatedAt" : 1774694842922,
   "chunkIds" : [ "kb-default-ffa50833-7775-458f-aab5-2dabd67384bd-chunk-0" ]
 }, {
   "entryId" : "kb-default-07ef75f5-b347-4d52-8aa9-69893f2acd2c",
@@ -14,25 +14,25 @@
   "source" : "seed",
   "type" : "text",
   "createdAt" : 1773592693591,
-  "updatedAt" : 1773592696883,
+  "updatedAt" : 1774694844237,
   "chunkIds" : [ "kb-default-07ef75f5-b347-4d52-8aa9-69893f2acd2c-chunk-0" ]
 }, {
   "entryId" : "kb-default-27a43f77-2064-4068-b236-603f3f11c9b7",
   "title" : "售后服务政策-退换货",
-  "content" : "退换货政策\n1. 自签收之日起7天内可无理由退货（特殊商品除外）\n2. 15天内出现质量问题可换货\n3. 退货商品需保持原包装完整，配件齐全\n4. 退货产生的运费由客户承担（质量问题除外）\n",
+  "content" : "退换货政策\n1. 自签收之日起7天内可无理由退货（特殊商品除外）\n2. 15天内出现质量问题可换货\n3. 退货商品需保持原包装完整，配件齐全\n4. 退货产生的运费由客户承担（质量问题除外）\n5. 保留最终解释权",
   "source" : "seed",
   "type" : "text",
   "createdAt" : 1773592693591,
-  "updatedAt" : 1773592697896,
+  "updatedAt" : 1774694845266,
   "chunkIds" : [ "kb-default-27a43f77-2064-4068-b236-603f3f11c9b7-chunk-0" ]
 }, {
   "entryId" : "kb-default-bcf7b9a7-2ced-4d0b-939a-f2d03c5b278b",
   "title" : "售后服务政策-保修",
-  "content" : "保修政策\n1. iPhone整机保修1年\n2. MacBook整机保修2年\n3. AirPods整机保修1年\n4. 保修期内非人为损坏免费维修\n",
+  "content" : "保修政策\n1. iPhone整机保修1年\n2. MacBook整机保修2年\n3. AirPods整机保修1年\n4. 保修期内非人为损坏免费维修",
   "source" : "seed",
   "type" : "text",
   "createdAt" : 1773592693591,
-  "updatedAt" : 1773592698923,
+  "updatedAt" : 1774694846399,
   "chunkIds" : [ "kb-default-bcf7b9a7-2ced-4d0b-939a-f2d03c5b278b-chunk-0" ]
 }, {
   "entryId" : "kb-default-64e4fcb3-af34-4d25-9f53-8effdcb68722",
@@ -41,15 +41,24 @@
   "source" : "seed",
   "type" : "text",
   "createdAt" : 1773592693591,
-  "updatedAt" : 1773592700051,
+  "updatedAt" : 1774694848241,
   "chunkIds" : [ "kb-default-64e4fcb3-af34-4d25-9f53-8effdcb68722-chunk-0" ]
 }, {
-  "entryId" : "kb-94cd8019-8b5b-4565-8fdb-59ec91589fec",
-  "title" : "发票开具",
-  "content" : "发票问题需要手动填写表格example.com/form/1234。请在链接中填写相关信息。",
+  "entryId" : "kb-9f510ee1-deca-4d51-94d6-38a89abf287f",
+  "title" : "智能手表保修说明",
+  "content" : "产品：智能手表\n保修：两年质保\n\n智能手表如何保修？\n答案：请联系客服，提供订单号和产品问题描述，我们会在24小时内安排维修。\n\n智能手表保修期是多久？\n答案：智能手表享受两年质保服务，两年内非人为损坏可免费维修。\n\n可以退换货吗？\n答案：智能手表支持七天无理由退换货，如有问题请在收货7天内申请。",
   "source" : "knowledge-console",
   "type" : "text",
-  "createdAt" : 1773625641853,
-  "updatedAt" : 1773625642944,
-  "chunkIds" : [ ]
+  "createdAt" : 1774181230318,
+  "updatedAt" : 1774694849194,
+  "chunkIds" : [ "kb-9f510ee1-deca-4d51-94d6-38a89abf287f-chunk-0" ]
+}, {
+  "entryId" : "kb-eb7caf38-70b8-4459-919b-f4b6efbc3b75",
+  "title" : "蓝牙耳机服务说明",
+  "content" : "产品：蓝牙耳机\n服务：一年保修、七天无理由退换\n\n蓝牙耳机如何申请保修？\n答案：请联系客服，提供耳机问题描述，一年内免费维修。\n\n蓝牙耳机支持退换吗？\n答案：蓝牙耳机支持七天无理由退换货，退货时请保持包装完整。",
+  "source" : "knowledge-console",
+  "type" : "text",
+  "createdAt" : 1774181264815,
+  "updatedAt" : 1774694850144,
+  "chunkIds" : [ "kb-eb7caf38-70b8-4459-919b-f4b6efbc3b75-chunk-0" ]
 } ]

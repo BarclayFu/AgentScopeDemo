@@ -1,10 +1,8 @@
 package com.example.customerservice.controller;
 
-import com.example.customerservice.dto.ChatRequest;
+import com.example.customerservice.dto.ChatMessageResult;
 import com.example.customerservice.service.AgentMonitoringService;
 import com.example.customerservice.service.ChatSessionService;
-import io.agentscope.core.message.Msg;
-import jakarta.validation.Valid;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +61,7 @@ public class ChatController {
             }
 
             // 处理用户消息
-            Msg response = chatSessionService.processUserMessage(
+            ChatMessageResult response = chatSessionService.processUserMessageWithMetadata(
                 userId,
                 message
             );
@@ -71,7 +69,7 @@ public class ChatController {
             logger.info(
                 "向用户 {} 发送响应，响应长度: {}",
                 userId,
-                response.getTextContent().length()
+                response.getResponse().length()
             );
 
             // 构造响应
@@ -79,9 +77,15 @@ public class ChatController {
                 "userId",
                 userId,
                 "response",
-                response.getTextContent(),
+                response.getResponse(),
+                "citations",
+                response.getCitations(),
+                "retrievalMode",
+                response.getRetrievalMode(),
+                "fallbackMode",
+                response.getFallbackMode(),
                 "timestamp",
-                System.currentTimeMillis()
+                response.getTimestamp()
             );
 
             return ResponseEntity.ok(responseBody);

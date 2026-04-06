@@ -660,6 +660,17 @@ public class ChatSessionService {
             return "";
         }
 
+        // 记录被移除的思考过程内容（不展示给用户，仅日志）
+        StringBuilder removedThoughts = new StringBuilder();
+        java.util.regex.Matcher blockMatcher = THINK_BLOCK_PATTERN.matcher(content);
+        while (blockMatcher.find()) {
+            if (removedThoughts.length() > 0) removedThoughts.append("\n---\n");
+            removedThoughts.append(blockMatcher.group());
+        }
+        if (removedThoughts.length() > 0) {
+            logger.debug("移除的思考过程内容:\n{}", removedThoughts);
+        }
+
         String sanitized = THINK_BLOCK_PATTERN.matcher(content).replaceAll("");
         sanitized =
             ESCAPED_THINK_BLOCK_PATTERN.matcher(sanitized).replaceAll("");

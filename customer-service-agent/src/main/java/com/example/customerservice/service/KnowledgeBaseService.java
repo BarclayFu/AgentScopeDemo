@@ -7,6 +7,7 @@ import com.example.customerservice.dto.KnowledgeOperationResponse;
 import com.example.customerservice.dto.KnowledgeStatusResponse;
 import com.example.customerservice.dto.RetrievedChunk;
 import com.example.customerservice.dto.VectorSearchResult;
+import com.example.customerservice.service.KnowledgeGraphService;
 import com.example.customerservice.service.extractor.TripleExtractor;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +59,7 @@ public class KnowledgeBaseService {
     private final Knowledge knowledgeBase;
     private final ObjectMapper objectMapper;
     private final TripleExtractor tripleExtractor;
+    private final KnowledgeGraphService knowledgeGraphService;
     private final Map<String, ManagedKnowledgeEntry> entries =
         new LinkedHashMap<>();
 
@@ -65,10 +67,16 @@ public class KnowledgeBaseService {
     private volatile Long lastRebuildAt;
     private volatile String lastOperationMessage = "知识库尚未执行管理操作";
 
-    public KnowledgeBaseService(Knowledge knowledgeBase, ObjectMapper objectMapper, TripleExtractor tripleExtractor) {
+    public KnowledgeBaseService(
+        Knowledge knowledgeBase,
+        ObjectMapper objectMapper,
+        TripleExtractor tripleExtractor,
+        KnowledgeGraphService knowledgeGraphService
+    ) {
         this.knowledgeBase = knowledgeBase;
         this.objectMapper = objectMapper;
         this.tripleExtractor = tripleExtractor;
+        this.knowledgeGraphService = knowledgeGraphService;
     }
 
     /**
@@ -82,6 +90,7 @@ public class KnowledgeBaseService {
                 seedDefaultEntries();
             }
             ensureManagedIndex();
+            ensureManagedGraph();
             updateLastUpdatedAtFromEntries();
         } catch (Exception e) {
             logger.error("知识库初始化失败", e);
@@ -155,11 +164,38 @@ public class KnowledgeBaseService {
             existing.type(),
             existing.createdAt(),
             now,
-            existing.chunkIds()
+            new ArrayList<>()
         );
 
+        deleteIndexedChunks(existing.chunkIds());
+        knowledgeGraphService.removeEntryReferences(entryId);
+
         entries.put(entryId, updated);
-        persistRegistry();
+
+        try {
+            indexEntry(updated);
+            tripleExtractor.extractAndStore(
+                updated.getEntryId(),
+                updated.getTitle(),
+                updated.getContent()
+            );
+            persistRegistry();
+        } catch (Exception exception) {
+            logger.error("更新知识条目失败，尝试回滚 entryId={}", entryId, exception);
+            entries.put(entryId, existing);
+            try {
+                indexEntry(existing.withChunkIds(new ArrayList<>()));
+                tripleExtractor.extractAndStore(
+                    existing.getEntryId(),
+                    existing.getTitle(),
+                    existing.getContent()
+                );
+                persistRegistry();
+            } catch (Exception rollbackException) {
+                logger.error("知识条目更新回滚失败，entryId={}", entryId, rollbackException);
+            }
+            throw exception;
+        }
 
         lastUpdatedAt = now;
         lastOperationMessage = "已更新知识条目: " + updated.title();
@@ -225,6 +261,7 @@ public class KnowledgeBaseService {
         }
 
         deleteIndexedChunks(entry.chunkIds());
+        knowledgeGraphService.removeEntryReferences(entryId);
         persistRegistry();
 
         long now = Instant.now().toEpochMilli();
@@ -238,11 +275,28 @@ public class KnowledgeBaseService {
     }
 
     public synchronized KnowledgeOperationResponse rebuildKnowledgeBase() throws IOException {
-        entries.values().forEach(entry -> deleteIndexedChunks(entry.chunkIds()));
+        entries.values().forEach(entry -> {
+            deleteIndexedChunks(entry.chunkIds());
+            knowledgeGraphService.removeEntryReferences(entry.entryId());
+        });
         entries.replaceAll((entryId, entry) -> entry.withChunkIds(new ArrayList<>()));
 
         for (ManagedKnowledgeEntry entry : entries.values()) {
-          indexEntry(entry);
+            indexEntry(entry);
+            try {
+                tripleExtractor.extractAndStore(
+                    entry.getEntryId(),
+                    entry.getTitle(),
+                    entry.getContent()
+                );
+            } catch (Exception e) {
+                logger.warn(
+                    "知识条目重建图谱失败，entryId={}, title={}",
+                    entry.getEntryId(),
+                    entry.getTitle(),
+                    e
+                );
+            }
         }
 
         persistRegistry();
@@ -420,6 +474,30 @@ public class KnowledgeBaseService {
             }
         }
         persistRegistry();
+    }
+
+    private void ensureManagedGraph() {
+        for (ManagedKnowledgeEntry entry : entries.values()) {
+            try {
+                if (
+                    knowledgeGraphService.findEntityIdsByEntryId(entry.entryId())
+                        .isEmpty()
+                ) {
+                    tripleExtractor.extractAndStore(
+                        entry.getEntryId(),
+                        entry.getTitle(),
+                        entry.getContent()
+                    );
+                }
+            } catch (Exception e) {
+                logger.warn(
+                    "初始化知识图谱失败，entryId={}, title={}",
+                    entry.getEntryId(),
+                    entry.getTitle(),
+                    e
+                );
+            }
+        }
     }
 
     private void indexEntry(ManagedKnowledgeEntry entry) {
